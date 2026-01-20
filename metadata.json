@@ -1,0 +1,7 @@
+{
+  "name": "Once Upon a Drawing",
+  "description": "Turn childhood drawings into beautiful storybooks you can share.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Once Upon a Drawing",
+  "short_name": "Once Upon",
+  "description": "Turn childhood drawings into beautiful storybooks you can share.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fdfdff",
+  "theme_color": "#393d3f",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3659/3659898.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
