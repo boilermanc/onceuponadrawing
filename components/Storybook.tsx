@@ -7,6 +7,11 @@ interface StorybookProps {
   videoUrl: string;
   onClose: () => void;
   onOrder: () => void;
+  onSave: () => Promise<void>;
+  savesUsed: number;
+  limit: number;
+  isSaving: boolean;
+  isAlreadySaved?: boolean;
 }
 
 const SFX = {
@@ -17,7 +22,17 @@ const SFX = {
   CHEER: 'https://assets.mixkit.co/sfx/preview/mixkit-small-group-cheer-and-applause-518.mp3'
 };
 
-const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOrder }) => {
+const Storybook: React.FC<StorybookProps> = ({
+  analysis,
+  videoUrl,
+  onClose,
+  onOrder,
+  onSave,
+  savesUsed,
+  limit,
+  isSaving,
+  isAlreadySaved
+}) => {
   const [currentPage, setCurrentPage] = useState(0); 
   const [isTurning, setIsTurning] = useState(false);
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
@@ -83,7 +98,7 @@ const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOr
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center animate-in fade-in duration-700 overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center animate-in fade-in duration-700">
       {/* Immersive Background */}
       <div className="absolute inset-0 opacity-40 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gunmetal via-blue-slate to-gunmetal"></div>
@@ -91,15 +106,15 @@ const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOr
         <div className="absolute bottom-[20%] right-[10%] w-96 h-96 bg-soft-gold/20 rounded-full blur-[120px] animate-pulse delay-1000"></div>
       </div>
 
-      {/* Top Toolbar */}
-      <div className="absolute top-6 left-0 right-0 px-6 flex justify-end items-center z-[110]">
-        <button 
-          onClick={handleClose}
-          className="w-12 h-12 md:w-14 md:h-14 bg-white/10 hover:bg-white/30 text-white rounded-full flex items-center justify-center text-3xl transition-all backdrop-blur-xl border border-white/20 hover:scale-110 active:scale-90 shadow-2xl"
-        >
-          ✕
-        </button>
-      </div>
+      {/* Close Button - Fixed position */}
+      <button
+        onClick={handleClose}
+        className="fixed top-4 right-4 md:top-6 md:right-6 w-12 h-12 md:w-14 md:h-14 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-xl border-2 border-silver/30 hover:scale-110 active:scale-90 z-[120] group"
+      >
+        <svg className="w-6 h-6 md:w-7 md:h-7 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
 
       <div className="relative w-full h-full max-w-[95vw] max-h-[80vh] md:max-w-[1200px] lg:max-w-[1400px] md:max-h-[800px] perspective-2000 flex items-center justify-center">
         {/* Book Container */}
@@ -181,9 +196,68 @@ const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOr
                       The End 📜
                     </div>
                     <h2 className="text-2xl md:text-5xl lg:text-6xl font-black text-gunmetal leading-tight mb-4">A Legacy Created.</h2>
-                    
-                    <div className="grid grid-cols-1 gap-4 pt-4 w-full max-w-sm mx-auto">
-                       <button 
+
+                    <div className="flex flex-col gap-4 pt-4 w-full max-w-sm mx-auto">
+                       {/* Save to Gallery Section */}
+                       <div className="flex flex-col items-center">
+                         {isAlreadySaved ? (
+                           <div className="flex items-center gap-2 px-4 py-2 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-sm font-bold">
+                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                             </svg>
+                             Saved to Gallery
+                           </div>
+                         ) : (
+                           <button
+                             onClick={onSave}
+                             disabled={isSaving}
+                             className={`flex flex-col items-center justify-center gap-1 w-full py-5 rounded-3xl font-black transition-all ${
+                               savesUsed >= limit && limit !== Infinity
+                                 ? 'bg-silver/30 text-blue-slate border-2 border-silver/50'
+                                 : 'bg-gradient-to-r from-pacific-cyan to-soft-gold text-white shadow-xl shadow-pacific-cyan/20 hover:scale-105 active:scale-95'
+                             }`}
+                           >
+                             {isSaving ? (
+                               <>
+                                 <div className="w-6 h-6 border-3 border-white border-t-transparent animate-spin rounded-full"></div>
+                                 <span className="text-lg">SAVING...</span>
+                               </>
+                             ) : (
+                               <>
+                                 <div className="flex items-center gap-2">
+                                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                   </svg>
+                                   <span className="text-lg">SAVE TO GALLERY</span>
+                                   {limit === Infinity && (
+                                     <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] uppercase tracking-wider">Premium</span>
+                                   )}
+                                 </div>
+                                 <span className={`text-[10px] uppercase tracking-widest font-black ${
+                                   savesUsed >= limit && limit !== Infinity ? 'text-blue-slate' : 'opacity-70'
+                                 }`}>
+                                   {limit === Infinity
+                                     ? 'Unlimited saves'
+                                     : savesUsed >= limit
+                                       ? 'Upgrade for unlimited saves'
+                                       : `${limit - savesUsed} free save${limit - savesUsed !== 1 ? 's' : ''} remaining`
+                                   }
+                                 </span>
+                               </>
+                             )}
+                           </button>
+                         )}
+                       </div>
+
+                       {/* Divider */}
+                       <div className="flex items-center gap-3 py-2">
+                         <div className="flex-1 h-px bg-silver/50"></div>
+                         <span className="text-[10px] text-silver font-black uppercase tracking-widest">Or Order</span>
+                         <div className="flex-1 h-px bg-silver/50"></div>
+                       </div>
+
+                       {/* Order Buttons */}
+                       <button
                          onClick={onOrder}
                          className="flex flex-col items-center justify-center gap-1 w-full py-6 bg-pacific-cyan text-white rounded-3xl font-black shadow-xl shadow-pacific-cyan/30 hover:scale-105 active:scale-95 transition-all group"
                        >
@@ -192,7 +266,7 @@ const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOr
                          <span className="text-[10px] opacity-70 uppercase tracking-widest font-black">Limited Studio Printing</span>
                        </button>
 
-                       <button 
+                       <button
                          onClick={onOrder}
                          className="flex flex-col items-center justify-center gap-1 w-full py-5 bg-white border-4 border-silver text-gunmetal rounded-3xl font-black hover:bg-off-white active:scale-95 transition-all"
                        >
@@ -201,7 +275,7 @@ const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOr
                          <span className="text-[10px] text-blue-slate opacity-70 uppercase tracking-widest font-black">Instant Digital Download</span>
                        </button>
 
-                       <button 
+                       <button
                          onClick={handleSave}
                          className="py-2 text-silver hover:text-blue-slate transition-colors text-[10px] font-black uppercase tracking-[0.4em]"
                        >
@@ -236,40 +310,25 @@ const Storybook: React.FC<StorybookProps> = ({ analysis, videoUrl, onClose, onOr
           )}
         </div>
 
-        {/* EXTERNAL Navigation Buttons */}
-        <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 left-0 right-0 justify-between w-[calc(100%+160px)] -ml-[80px] pointer-events-none z-[120]">
-          <button 
-            onClick={handlePrev}
-            disabled={currentPage === 0 || isTurning}
-            className={`pointer-events-auto w-20 h-20 bg-pacific-cyan/20 hover:bg-pacific-cyan text-white rounded-full flex items-center justify-center text-3xl transition-all shadow-2xl backdrop-blur-xl border border-white/20 active:scale-90 ${currentPage === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            ◀
-          </button>
-          <button 
-            onClick={handleNext}
-            disabled={currentPage === totalSpreads - 1 || isTurning}
-            className={`pointer-events-auto w-20 h-20 bg-pacific-cyan/20 hover:bg-pacific-cyan text-white rounded-full flex items-center justify-center text-3xl transition-all shadow-2xl backdrop-blur-xl border border-white/20 active:scale-90 ${currentPage === totalSpreads - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            ▶
-          </button>
-        </div>
-
-        <div className="flex md:hidden absolute bottom-6 left-0 right-0 justify-between px-2 pointer-events-none z-[120]">
-          <button 
-            onClick={handlePrev}
-            disabled={currentPage === 0 || isTurning}
-            className={`pointer-events-auto w-16 h-16 bg-pacific-cyan/30 text-white rounded-full flex items-center justify-center text-2xl transition-all backdrop-blur-xl border border-white/20 active:scale-90 ${currentPage === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            ◀
-          </button>
-          <button 
-            onClick={handleNext}
-            disabled={currentPage === totalSpreads - 1 || isTurning}
-            className={`pointer-events-auto w-16 h-16 bg-pacific-cyan/30 text-white rounded-full flex items-center justify-center text-2xl transition-all backdrop-blur-xl border border-white/20 active:scale-90 ${currentPage === totalSpreads - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            ▶
-          </button>
-        </div>
+        {/* Navigation Buttons - Fixed position relative to viewport */}
+        <button
+          onClick={handlePrev}
+          disabled={currentPage === 0 || isTurning}
+          className={`fixed left-4 md:left-8 top-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-xl border-2 border-silver/30 active:scale-90 z-[120] ${currentPage === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100 hover:scale-110'}`}
+        >
+          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={handleNext}
+          disabled={currentPage === totalSpreads - 1 || isTurning}
+          className={`fixed right-4 md:right-8 top-1/2 -translate-y-1/2 w-14 h-14 md:w-16 md:h-16 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-xl border-2 border-silver/30 active:scale-90 z-[120] ${currentPage === totalSpreads - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100 hover:scale-110'}`}
+        >
+          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
 
       {/* Progress Footer */}

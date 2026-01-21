@@ -75,7 +75,7 @@ const StepProcessing: React.FC<StepProcessingProps> = ({ text, originalImage, is
       </div>
 
       <h3 className="text-2xl md:text-3xl font-black text-gunmetal mb-4 text-center px-4 min-h-[4rem] flex items-center justify-center">
-        {isAnimating ? shuffledPool[currentIndex] : "Reading your magic art... 🪄"}
+        {isAnimating ? shuffledPool[currentIndex] : "Reading your magic art..."}
       </h3>
       
       <p className="text-blue-slate font-bold text-center max-w-sm px-6">

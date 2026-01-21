@@ -4,6 +4,7 @@ import { User } from '../types';
 import Button from './ui/Button';
 import { supabase } from '../services/supabaseClient';
 import { getProfile } from '../services/supabaseService';
+import { useToast } from './ui/Toast';
 
 interface AuthScreenProps {
   onAuthenticated: (user: User, isNewUser: boolean) => void;
@@ -12,6 +13,7 @@ interface AuthScreenProps {
 }
 
 const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, initialIsLogin = false }) => {
+  const { showToast } = useToast();
   const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +34,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
     e.preventDefault();
 
     if (!isLogin && formData.password !== formData.confirmPassword) {
-      alert("Your passwords do not match! Please verify your password entry.");
+      showToast('error', 'Passwords Don\'t Match', 'Please make sure both password fields are identical.');
       return;
     }
 
@@ -41,15 +43,21 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
     try {
       if (isLogin) {
         // Supabase SignIn
+        console.log('[Auth] Attempting login for:', formData.email);
         const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
+        console.log('[Auth] Login result:', { user: data?.user?.id, error: error?.message });
 
         if (error) throw error;
-        
+
+        console.log('[Auth] Fetching profile for user:', data.user.id);
         const profile = await getProfile(data.user.id);
+        console.log('[Auth] Profile result:', profile);
+
         if (profile) {
+          console.log('[Auth] Calling onAuthenticated with profile');
           onAuthenticated({
             id: profile.id,
             firstName: profile.first_name,
@@ -57,6 +65,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
             email: profile.email,
             subscribed: profile.subscribed,
             createdAt: profile.created_at
+          }, false);
+        } else {
+          // Profile doesn't exist - user may have been created before migrations
+          // Use auth metadata as fallback
+          console.log('[Auth] No profile found, using auth metadata fallback');
+          const meta = data.user.user_metadata || {};
+          onAuthenticated({
+            id: data.user.id,
+            firstName: meta.first_name || '',
+            lastName: meta.last_name || '',
+            email: data.user.email || '',
+            subscribed: false,
+            createdAt: data.user.created_at || new Date().toISOString()
           }, false);
         }
       } else {
@@ -85,7 +106,23 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
         }, true);
       }
     } catch (err: any) {
-      alert(err.message || "Studio access denied. Check your credentials.");
+      const errorMessage = err.message || '';
+
+      // Provide user-friendly error messages
+      if (errorMessage.includes('Invalid login credentials')) {
+        showToast('error', 'Login Failed', 'The email or password you entered is incorrect. Please try again.');
+      } else if (errorMessage.includes('Email not confirmed')) {
+        showToast('warning', 'Email Not Verified', 'Please check your inbox and click the verification link we sent you.');
+      } else if (errorMessage.includes('User already registered')) {
+        showToast('info', 'Account Exists', 'This email is already registered. Try logging in instead.');
+      } else if (errorMessage.includes('Password should be')) {
+        showToast('error', 'Weak Password', 'Password must be at least 6 characters long.');
+      } else if (errorMessage.includes('rate limit')) {
+        showToast('warning', 'Too Many Attempts', 'Please wait a moment before trying again.');
+      } else {
+        showToast('error', 'Authentication Error', errorMessage || 'Something went wrong. Please try again.');
+      }
+      console.error('[Auth] Error:', errorMessage);
     } finally {
       setIsLoading(false);
     }

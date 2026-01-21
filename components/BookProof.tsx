@@ -211,7 +211,7 @@ const BookProof: React.FC<BookProofProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-4 flex flex-col items-center min-h-[85vh] animate-in fade-in zoom-in-95 duration-700 overflow-x-hidden">
+    <div className="max-w-6xl mx-auto py-12 px-4 flex flex-col items-center min-h-[85vh] animate-in fade-in zoom-in-95 duration-700">
       <div className="mb-12 text-center">
         <div className="inline-block px-4 py-1.5 bg-soft-gold/10 text-soft-gold rounded-full text-[10px] font-black uppercase tracking-[0.4em] mb-4 border border-soft-gold/20">
           Studio Preview • {totalSpreads * 2} Pages

@@ -98,3 +98,13 @@ export interface AppState {
   error: string | null;
   currentOrder?: Order;
 }
+
+// Global type declaration for AI Studio environment
+declare global {
+  interface Window {
+    aistudio?: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}

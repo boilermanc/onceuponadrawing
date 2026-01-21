@@ -17,8 +17,14 @@ export const uploadFile = async (bucket: string, path: string, base64Data: strin
 
   if (error) throw error;
   
-  const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
-  return publicUrl;
+  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, 60 * 60 * 24 * 365); // 1 year expiry
+
+  if (signedUrlError || !signedUrlData?.signedUrl) {
+    throw new Error('Failed to generate signed URL');
+  }
+  return signedUrlData.signedUrl;
 };
 
 export const saveDrawing = async (userId: string, imageUrl: string, analysis: DrawingAnalysis) => {

@@ -8,9 +8,10 @@ interface HeaderProps {
   onLogout: () => void;
   onLoginClick: () => void;
   onProfileClick: () => void;
+  onMyCreations?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onLogoClick, user, onLogout, onLoginClick, onProfileClick }) => {
+const Header: React.FC<HeaderProps> = ({ onLogoClick, user, onLogout, onLoginClick, onProfileClick, onMyCreations }) => {
   return (
     <header className="sticky top-0 z-50 bg-off-white/80 backdrop-blur-md border-b border-silver px-6 py-4 flex items-center justify-between">
       <div 
@@ -34,17 +35,30 @@ const Header: React.FC<HeaderProps> = ({ onLogoClick, user, onLogout, onLoginCli
               <p className="text-[10px] font-black text-silver uppercase tracking-widest">Master Artist</p>
               <p className="text-sm font-black text-gunmetal">{user.firstName}</p>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <button 
+              {onMyCreations && (
+                <button
+                  onClick={onMyCreations}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-pacific-cyan/10 hover:bg-pacific-cyan/20 text-pacific-cyan border border-pacific-cyan/30 transition-all active:scale-95"
+                  title="My Creations"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span className="hidden md:inline text-sm font-bold">My Creations</span>
+                </button>
+              )}
+
+              <button
                 onClick={onProfileClick}
                 className="w-10 h-10 rounded-full bg-white border-2 border-silver flex items-center justify-center text-gunmetal hover:border-pacific-cyan hover:text-pacific-cyan transition-all shadow-sm active:scale-95"
                 title="Artist Profile"
               >
                 <span className="text-xl">👤</span>
               </button>
-              
-              <button 
+
+              <button
                 onClick={onLogout}
                 className="w-10 h-10 rounded-full border-2 border-silver flex items-center justify-center text-gunmetal hover:bg-silver/10 transition-colors"
                 title="Leave Studio"
