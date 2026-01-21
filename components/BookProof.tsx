@@ -8,17 +8,17 @@ interface BookProofProps {
   originalImage: string;
   heroImage: string;
   onUpdate: (updates: Partial<DrawingAnalysis>) => void;
-  onConfirm: () => void;
+  onApprove: () => void;
   onBack: () => void;
 }
 
-const BookProof: React.FC<BookProofProps> = ({ 
-  analysis, 
-  originalImage, 
-  heroImage, 
-  onUpdate, 
-  onConfirm, 
-  onBack 
+const BookProof: React.FC<BookProofProps> = ({
+  analysis,
+  originalImage,
+  heroImage,
+  onUpdate,
+  onApprove,
+  onBack
 }) => {
   const [spreadIndex, setSpreadIndex] = useState(0);
   
@@ -257,7 +257,7 @@ const BookProof: React.FC<BookProofProps> = ({
 
       <div className="flex flex-col sm:flex-row gap-6 mt-8 w-full max-w-md">
         <Button variant="outline" onClick={onBack} className="flex-1">← Re-Select Edition</Button>
-        <Button onClick={onConfirm} size="lg" className="flex-[2] py-6 shadow-2xl">
+        <Button onClick={onApprove} size="lg" className="flex-[2] py-6 shadow-2xl">
           Everything Looks Perfect! ✨
         </Button>
       </div>

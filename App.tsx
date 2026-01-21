@@ -430,6 +430,7 @@ const App: React.FC = () => {
       ...prev,
       originalImage: creation.original_image_url,
       finalVideoUrl: creation.video_url,
+      heroImageUrl: creation.original_image_url,
       analysis: analysisWithImages,
       step: AppStep.RESULT,
     }));
@@ -513,15 +514,24 @@ const App: React.FC = () => {
               />
             )}
             {state.step === AppStep.CHECKOUT && state.analysis && (
-              <BookProof 
+              <BookProof
                 analysis={state.analysis}
                 originalImage={state.originalImage!}
-                heroImage={state.heroImageUrl!}
+                heroImage={state.heroImageUrl || state.originalImage!}
                 onUpdate={handleUpdateAnalysis}
-                onConfirm={() => {
-                  handleOrderComplete(selectedProduct!, state.analysis!.dedication || "");
+                onApprove={() => {
+                  setState(prev => ({...prev, step: AppStep.ORDER_FLOW}));
                 }}
                 onBack={() => setState(prev => ({...prev, step: AppStep.PRODUCT_SELECT}))}
+              />
+            )}
+            {state.step === AppStep.ORDER_FLOW && state.analysis && (
+              <OrderFlow
+                analysis={state.analysis}
+                onClose={() => setState(prev => ({...prev, step: AppStep.CHECKOUT}))}
+                onComplete={(product, dedication, shipping) => {
+                  handleOrderComplete(product, dedication, shipping);
+                }}
               />
             )}
             {state.step === AppStep.CONFIRMATION && state.currentOrder && (
