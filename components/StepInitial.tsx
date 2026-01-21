@@ -3,9 +3,10 @@ import React from 'react';
 
 interface StepInitialProps {
   onStart: () => void;
+  onLogin?: () => void;
 }
 
-const StepInitial: React.FC<StepInitialProps> = ({ onStart }) => {
+const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
   return (
     <div className="flex flex-col items-center py-0 px-0 max-w-full mx-auto animate-in fade-in duration-1000 overflow-x-hidden bg-off-white">
       
@@ -211,6 +212,87 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart }) => {
                 </div>
               ))}
            </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="w-full py-32 bg-off-white relative">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h3 className="text-4xl md:text-6xl font-black text-gunmetal tracking-tighter mb-4">
+              Simple Pricing
+            </h3>
+            <p className="text-blue-slate text-xl font-medium opacity-70">
+              Start free. Pay only when you need more.
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-slate-50 to-white rounded-[3rem] border-2 border-silver/30 p-8 md:p-12 shadow-xl">
+            {/* Free Tier Hero */}
+            <div className="flex items-center justify-center gap-4 mb-10 pb-10 border-b border-silver/20">
+              <span className="text-5xl">🎁</span>
+              <div className="text-center sm:text-left">
+                <p className="text-2xl md:text-3xl font-black text-gunmetal">3 Free Creations</p>
+                <p className="text-blue-slate font-medium">No credit card required</p>
+              </div>
+            </div>
+
+            {/* Paid Tiers */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Starter */}
+              <div className="p-6 bg-white rounded-2xl border-2 border-silver/20 text-center hover:border-silver/40 transition-colors">
+                <p className="text-xs font-black text-silver uppercase tracking-[0.3em] mb-2">Starter</p>
+                <p className="text-4xl font-black text-gunmetal mb-1">$12.99</p>
+                <p className="text-blue-slate font-semibold text-lg">3 creations</p>
+                <p className="text-sm text-silver mt-2">$4.33 each</p>
+              </div>
+
+              {/* Popular */}
+              <div className="p-6 bg-gradient-to-br from-pacific-cyan/10 to-white rounded-2xl border-2 border-pacific-cyan/40 text-center relative shadow-lg scale-[1.02]">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-pacific-cyan text-white text-xs font-black rounded-full shadow-md">
+                  Most Popular
+                </span>
+                <p className="text-xs font-black text-pacific-cyan uppercase tracking-[0.3em] mb-2 mt-2">Popular</p>
+                <p className="text-4xl font-black text-gunmetal mb-1">$19.99</p>
+                <p className="text-blue-slate font-semibold text-lg">5 creations</p>
+                <p className="text-sm text-pacific-cyan font-semibold mt-2">$4.00 each — Save 8%</p>
+              </div>
+
+              {/* Best Value */}
+              <div className="p-6 bg-gradient-to-br from-soft-gold/10 to-white rounded-2xl border-2 border-soft-gold/40 text-center relative">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-soft-gold text-gunmetal text-xs font-black rounded-full shadow-md">
+                  Best Value
+                </span>
+                <p className="text-xs font-black text-soft-gold uppercase tracking-[0.3em] mb-2 mt-2">Best Value</p>
+                <p className="text-4xl font-black text-gunmetal mb-1">$34.99</p>
+                <p className="text-blue-slate font-semibold text-lg">10 creations</p>
+                <p className="text-sm text-soft-gold font-semibold mt-2">$3.50 each — Save 19%</p>
+              </div>
+            </div>
+
+            <p className="text-center text-sm text-silver mt-8">
+              Credits are valid for one year from purchase
+            </p>
+
+            {/* CTA Button */}
+            <div className="flex flex-col items-center mt-10">
+              <button
+                onClick={onStart}
+                className="w-full max-w-sm mx-auto px-8 py-4 bg-gradient-to-r from-pacific-cyan to-blue-500 text-white rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl"
+              >
+                Get Started Free →
+              </button>
+              <p className="mt-4 text-sm text-blue-slate">
+                Already have an account?{' '}
+                <button
+                  onClick={onLogin || onStart}
+                  className="text-pacific-cyan font-semibold hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -12,6 +12,8 @@ import {
   getProfile
 } from './services/supabaseService';
 import { canSaveCreation, saveCreation, CreationWithSignedUrls } from './services/creationsService';
+import { getCreditBalance, canCreate, useCredit, CreditBalance } from './services/creditsService';
+import { createCheckout } from './services/stripeService';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import StepInitial from './components/StepInitial';
@@ -30,6 +32,8 @@ import OrderFlow from './components/OrderFlow';
 import BookProof from './components/BookProof';
 import Confirmation from './components/Confirmation';
 import InfoPages, { InfoPageType } from './components/InfoPages';
+import PricingModal from './components/PricingModal';
+import PurchaseSuccess from './components/PurchaseSuccess';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -53,11 +57,19 @@ const App: React.FC = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ savesUsed: number; limit: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [creationSaved, setCreationSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // My Creations gallery state
   const [showMyCreations, setShowMyCreations] = useState(false);
   const [viewingCreation, setViewingCreation] = useState<CreationWithSignedUrls | null>(null);
+
+  // Credit system state
+  const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
+  const [showOutOfCredits, setShowOutOfCredits] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
 
   // Supabase Auth Listener
   useEffect(() => {
@@ -65,8 +77,8 @@ const App: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const profile = await getProfile(session.user.id);
-        setState(prev => ({ 
-          ...prev, 
+        setState(prev => ({
+          ...prev,
           user: profile ? {
             id: profile.id,
             firstName: profile.first_name,
@@ -74,8 +86,15 @@ const App: React.FC = () => {
             email: profile.email,
             subscribed: profile.subscribed,
             createdAt: profile.created_at
-          } : null 
+          } : null
         }));
+        // Fetch credit balance on login
+        try {
+          const balance = await getCreditBalance(session.user.id);
+          setCreditBalance(balance);
+        } catch (err) {
+          console.error('Failed to fetch credit balance:', err);
+        }
       }
     };
 
@@ -84,8 +103,8 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const profile = await getProfile(session.user.id);
-        setState(prev => ({ 
-          ...prev, 
+        setState(prev => ({
+          ...prev,
           user: profile ? {
             id: profile.id,
             firstName: profile.first_name,
@@ -93,10 +112,18 @@ const App: React.FC = () => {
             email: profile.email,
             subscribed: profile.subscribed,
             createdAt: profile.created_at
-          } : null 
+          } : null
         }));
+        // Fetch credit balance on auth state change
+        try {
+          const balance = await getCreditBalance(session.user.id);
+          setCreditBalance(balance);
+        } catch (err) {
+          console.error('Failed to fetch credit balance:', err);
+        }
       } else {
         setState(prev => ({ ...prev, user: null }));
+        setCreditBalance(null);
       }
     });
 
@@ -124,6 +151,23 @@ const App: React.FC = () => {
 
     checkAndRestoreDraft();
   }, []);
+
+  // Check for successful Stripe purchase return
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('session_id')) {
+      setShowPurchaseSuccess(true);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const refreshCreditBalance = async () => {
+    if (state.user) {
+      const balance = await getCreditBalance(state.user.id);
+      setCreditBalance(balance);
+    }
+  };
 
   const handleOpenStory = async () => {
     if (!state.user) {
@@ -167,6 +211,21 @@ const App: React.FC = () => {
           await window.aistudio.openSelectKey();
         }
       }
+
+      // If user is not logged in, redirect to auth first
+      if (!state.user) {
+        setAuthInitialIsLogin(false);
+        setState(prev => ({ ...prev, step: AppStep.AUTH }));
+        return;
+      }
+
+      // Check if user can create (has credits available)
+      const createResult = await canCreate(state.user.id);
+      if (!createResult.canCreate && createResult.reason === 'no_credits') {
+        setShowOutOfCredits(true);
+        return;
+      }
+
       setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
     } catch (err) {
       setState(prev => ({ ...prev, error: 'Magic key needed!' }));
@@ -328,10 +387,13 @@ const App: React.FC = () => {
     }));
     setShowStorybook(false);
     setShowSaveModal(false);
+    setCreationSaved(false);
     setSaveStatus(null);
     setCurrentDrawingId(undefined);
     setViewingCreation(null);
     setShowMyCreations(false);
+    setShowOutOfCredits(false);
+    setShowPricingModal(false);
   };
 
   const handleStorybookClose = async () => {
@@ -383,14 +445,23 @@ const App: React.FC = () => {
         pageImages,
       });
 
-      if (result.success) {
+      if (result.success && result.creationId) {
+        // Deduct credit after successful creation save
+        try {
+          const creditResult = await useCredit(state.user.id, result.creationId);
+          setCreditBalance(creditResult.newBalance);
+        } catch (creditErr) {
+          console.error('Failed to deduct credit:', creditErr);
+          // Don't fail the save if credit deduction fails
+        }
+
         setShowSaveModal(false);
+        setCreationSaved(true);
         setSaveMessage({ type: 'success', text: 'Creation saved to your gallery!' });
-        // Auto-clear success message and reset after a brief delay
+        // Auto-clear success message but stay on storybook so they can still purchase
         setTimeout(() => {
           setSaveMessage(null);
-          handleReset();
-        }, 2000);
+        }, 3000);
       } else {
         setSaveMessage({ type: 'error', text: result.error || 'Failed to save creation' });
       }
@@ -410,6 +481,27 @@ const App: React.FC = () => {
       setSaveMessage(null);
       handleReset();
     }, 1500);
+  };
+
+  const handleSelectPack = async (packName: 'starter' | 'popular' | 'best_value') => {
+    // If user is not logged in, redirect to auth first
+    if (!state.user) {
+      setShowPricingModal(false);
+      setAuthInitialIsLogin(false);
+      setState(prev => ({ ...prev, step: AppStep.AUTH }));
+      return;
+    }
+
+    try {
+      setIsPurchasing(true);
+      const checkoutUrl = await createCheckout(packName);
+      window.location.href = checkoutUrl;
+    } catch (error) {
+      console.error('Checkout error:', error);
+      // Show error to user
+    } finally {
+      setIsPurchasing(false);
+    }
   };
 
   const handleOpenSavedCreation = (creation: CreationWithSignedUrls) => {
@@ -457,6 +549,8 @@ const App: React.FC = () => {
             onLoginClick={handleLoginClick}
             onProfileClick={handleProfileClick}
             onMyCreations={state.user ? () => setShowMyCreations(true) : undefined}
+            creditBalance={creditBalance}
+            onGetCredits={() => setShowPricingModal(true)}
           />
           <main className="relative z-10 flex-grow">
             {state.error && (
@@ -468,7 +562,7 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {state.step === AppStep.INITIAL && <StepInitial onStart={handleStart} />}
+            {state.step === AppStep.INITIAL && <StepInitial onStart={handleStart} onLogin={handleLoginClick} />}
             {state.step === AppStep.AUTH && (
               <AuthScreen 
                 onAuthenticated={handleAuthenticated} 
@@ -556,7 +650,7 @@ const App: React.FC = () => {
           savesUsed={saveStatus?.savesUsed ?? 0}
           limit={saveStatus?.limit ?? 5}
           isSaving={isSaving}
-          isAlreadySaved={!!viewingCreation}
+          isAlreadySaved={!!viewingCreation || creationSaved}
         />
       )}
 
@@ -596,6 +690,57 @@ const App: React.FC = () => {
               setShowMyCreations(false);
               setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
             }}
+          />
+        </div>
+      )}
+
+      {/* Out of Credits Modal */}
+      {showOutOfCredits && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-2xl max-w-md text-center shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="text-5xl mb-4">✨</div>
+            <h2 className="text-2xl font-bold text-gunmetal mb-2">You've used your free creations!</h2>
+            <p className="text-gunmetal/70 mb-6">Get more credits to continue making magic.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowOutOfCredits(false)}
+                className="px-5 py-2.5 border-2 border-gunmetal/20 text-gunmetal rounded-xl font-semibold hover:bg-gunmetal/5 transition-colors"
+              >
+                Maybe Later
+              </button>
+              <button
+                onClick={() => {
+                  setShowOutOfCredits(false);
+                  setShowPricingModal(true);
+                }}
+                className="px-5 py-2.5 bg-pacific-cyan text-white rounded-xl font-semibold hover:bg-pacific-cyan/90 transition-colors shadow-md"
+              >
+                View Pricing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pricing Modal */}
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+        currentBalance={creditBalance}
+        onSelectPack={handleSelectPack}
+        isLoading={isPurchasing}
+        isAuthenticated={!!state.user}
+      />
+
+      {/* Purchase Success */}
+      {showPurchaseSuccess && (
+        <div className="fixed inset-0 z-50 bg-off-white flex items-center justify-center">
+          <PurchaseSuccess
+            onContinue={() => {
+              setShowPurchaseSuccess(false);
+              setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+            }}
+            onRefreshBalance={refreshCreditBalance}
           />
         </div>
       )}

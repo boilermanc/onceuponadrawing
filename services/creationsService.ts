@@ -285,10 +285,8 @@ export async function saveCreation(
       return { success: false, error: `Failed to upload video: ${videoResult.error}` };
     }
 
-    // Upload page images to page-images bucket
-    const pageImagePaths: string[] = [];
-    for (let i = 0; i < data.pageImages.length; i++) {
-      const pageImage = data.pageImages[i];
+    // Upload page images to page-images bucket (in parallel for speed)
+    const pageUploadPromises = data.pageImages.map(async (pageImage, i) => {
       const pagePath = generateStoragePath(userId, `page-${i + 1}.png`);
       const pageResult = await uploadToStorage(
         'page-images',
@@ -297,9 +295,16 @@ export async function saveCreation(
         'image/png'
       );
       if (pageResult.error) {
-        return { success: false, error: `Failed to upload page ${i + 1}: ${pageResult.error}` };
+        throw new Error(`Failed to upload page ${i + 1}: ${pageResult.error}`);
       }
-      pageImagePaths.push(pagePath);
+      return pagePath;
+    });
+
+    let pageImagePaths: string[];
+    try {
+      pageImagePaths = await Promise.all(pageUploadPromises);
+    } catch (uploadError) {
+      return { success: false, error: (uploadError as Error).message };
     }
 
     // Insert row into creations table
@@ -326,31 +331,7 @@ export async function saveCreation(
       return { success: false, error: 'Failed to save creation to database' };
     }
 
-    // Increment free_saves_used if user is on free tier
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('subscription_tier, subscription_expires_at')
-      .eq('id', userId)
-      .single();
-
-    const isPremium =
-      profile?.subscription_tier === 'premium' &&
-      profile?.subscription_expires_at &&
-      new Date(profile.subscription_expires_at) > new Date();
-
-    if (!isPremium) {
-      await supabase.rpc('increment_free_saves', { user_uuid: userId });
-      // Fallback if RPC doesn't exist - direct update
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ free_saves_used: eligibility.savesUsed + 1 })
-        .eq('id', userId);
-
-      if (updateError) {
-        console.warn('Failed to increment free_saves_used:', updateError);
-      }
-    }
-
+    // Credit deduction is handled separately by useCredit() in creditsService.ts
     return { success: true, creationId: creation.id };
   } catch (error) {
     console.error('Unexpected error saving creation:', error);

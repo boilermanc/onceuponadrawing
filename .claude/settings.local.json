@@ -6,7 +6,11 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd ORDER_FLOW step to separate proof approval from checkout\n\nSplit the checkout flow so BookProof approval leads to a dedicated\nOrderFlow step, making the user journey clearer.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(findstr:*)",
+      "Bash(npx supabase functions deploy:*)"
     ]
   }
 }

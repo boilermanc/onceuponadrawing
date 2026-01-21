@@ -221,6 +221,7 @@ const Storybook: React.FC<StorybookProps> = ({
                                <>
                                  <div className="w-6 h-6 border-3 border-white border-t-transparent animate-spin rounded-full"></div>
                                  <span className="text-lg">SAVING...</span>
+                                 <span className="text-xs opacity-80 font-medium">This may take a moment</span>
                                </>
                              ) : (
                                <>
