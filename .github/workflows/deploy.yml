@@ -51,6 +51,13 @@ jobs:
             '</IfModule>' \
             > dist/.htaccess
 
+      - name: List build output
+        run: |
+          echo "=== dist folder ==="
+          ls -la dist/
+          echo "=== dist/assets folder ==="
+          ls -la dist/assets/
+
       - name: Upload built site via SFTP
         uses: Dylan700/sftp-upload-action@v1.2.3
         with:
