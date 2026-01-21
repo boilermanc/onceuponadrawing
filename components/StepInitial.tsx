@@ -34,7 +34,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart }) => {
           <div className="relative bg-gunmetal rounded-[3rem] md:rounded-[5rem] overflow-hidden shadow-3xl border-[12px] border-white ring-1 ring-silver/20">
             <div className="aspect-video w-full relative">
               <video 
-                src="https://v.ftcdn.net/05/54/16/84/700_F_554168434_vW7m9S1gL1k9K9QO0oYpI8V8nL6vO7xN_ST.mp4" 
+                src="/4ee7ac08-941f-4360-a47a-301a6f15d1f3.mp4" 
                 autoPlay 
                 loop 
                 muted 
