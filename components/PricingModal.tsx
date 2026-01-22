@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditBalance } from '../services/creditsService';
+import { CreditBalance, FREE_CREATION_LIMIT } from '../services/creditsService';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -63,7 +63,7 @@ const PricingModal: React.FC<PricingModalProps> = ({
   const savesRemaining = saveLimit - savesUsed;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
@@ -124,7 +124,7 @@ const PricingModal: React.FC<PricingModalProps> = ({
             <p className="text-gunmetal/70 text-lg">
               {showSaveBanner
                 ? 'Get additional credits to create and save more magical stories'
-                : 'Turn more treasured drawings into magical stories'
+                : `${FREE_CREATION_LIMIT} creations free — get more to turn treasured drawings into magical stories`
               }
             </p>
             {!showSaveBanner && currentBalance && currentBalance.freeRemaining > 0 && (

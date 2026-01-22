@@ -1,21 +1,45 @@
 
 import React, { useState, useEffect } from 'react';
 import { DrawingAnalysis, ProductType, ShippingInfo } from '../types';
+import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
+
+interface BookPrice {
+  priceId: string;
+  amount: number;
+  currency: string;
+  displayPrice: string;
+  productName: string;
+}
+
+interface BookPricesResponse {
+  ebook: BookPrice | null;
+  hardcover: BookPrice | null;
+}
 
 interface OrderFlowProps {
   analysis: DrawingAnalysis;
+  userId: string;
+  creationId: string;
+  userEmail: string;
   onClose: () => void;
   onComplete: (product: ProductType, dedication: string, shipping?: ShippingInfo) => void;
 }
 
-const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, onClose, onComplete }) => {
-  const [step, setStep] = useState<'PRODUCT' | 'DEDICATION' | 'SHIPPING' | 'PAYMENT' | 'PROCESSING'>('PRODUCT');
-  const [product, setProduct] = useState<ProductType>(ProductType.HARDCOVER);
+const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, onClose, onComplete }) => {
+  const [step, setStep] = useState<'PRODUCT' | 'DEDICATION' | 'SHIPPING' | 'REVIEW'>('PRODUCT');
+  const [product, setProduct] = useState<ProductType>(ProductType.EBOOK); // Default to ebook since hardcover not available yet
   const [dedication, setDedication] = useState(analysis.dedication || '');
-  const [cardData, setCardData] = useState({ number: '', expiry: '', cvc: '' });
-  const [isPayEnabled, setIsPayEnabled] = useState(false);
-  
+
+  // Price fetching state
+  const [prices, setPrices] = useState<BookPricesResponse | null>(null);
+  const [pricesLoading, setPricesLoading] = useState(true);
+  const [pricesError, setPricesError] = useState<string | null>(null);
+
+  // Checkout state
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
   const [shipping, setShipping] = useState<ShippingInfo>({
     fullName: '',
     address1: '',
@@ -27,33 +51,93 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, onClose, onComplete }) 
     email: ''
   });
 
+  // Fetch book prices on mount
   useEffect(() => {
-    const isCardValid = cardData.number.replace(/\s/g, '').length === 16 && 
-                        cardData.expiry.length === 5 && 
-                        cardData.cvc.length === 3;
-    setIsPayEnabled(isCardValid);
-  }, [cardData]);
+    const fetchPrices = async () => {
+      try {
+        setPricesLoading(true);
+        setPricesError(null);
+        const response = await fetch('https://cdhymstkzhlxcucbzipr.supabase.co/functions/v1/get-book-prices');
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch prices: ${response.status}`);
+        }
+
+        const data: BookPricesResponse = await response.json();
+        setPrices(data);
+      } catch (error) {
+        console.error('Error fetching book prices:', error);
+        setPricesError(error instanceof Error ? error.message : 'Failed to load prices');
+      } finally {
+        setPricesLoading(false);
+      }
+    };
+
+    fetchPrices();
+  }, []);
 
   const handleNext = () => {
     if (step === 'PRODUCT') setStep('DEDICATION');
     else if (step === 'DEDICATION') {
       if (product === ProductType.HARDCOVER) setStep('SHIPPING');
-      else setStep('PAYMENT');
+      else setStep('REVIEW');
     }
-    else if (step === 'SHIPPING') setStep('PAYMENT');
-    else if (step === 'PAYMENT') {
-      setStep('PROCESSING');
-      // Simulate bank delay
-      setTimeout(() => {
-        onComplete(product, dedication, shipping);
-      }, 3000);
+    else if (step === 'SHIPPING') setStep('REVIEW');
+  };
+
+  const handleCheckout = async () => {
+    if (!selectedPrice) return;
+
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('https://cdhymstkzhlxcucbzipr.supabase.co/functions/v1/create-book-checkout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: selectedPrice.priceId,
+          productType: product === ProductType.EBOOK ? 'ebook' : 'hardcover',
+          userId,
+          creationId,
+          dedicationText: dedication || undefined,
+          userEmail,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout');
+      }
+
+      const { url } = await response.json();
+
+      if (!url) {
+        throw new Error('No checkout URL returned');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = url;
+    } catch (error) {
+      console.error('Checkout error:', error);
+      setCheckoutError(error instanceof Error ? error.message : 'Failed to start checkout');
+      setIsCheckingOut(false);
     }
   };
 
   const handleBack = () => {
     if (step === 'DEDICATION') setStep('PRODUCT');
     else if (step === 'SHIPPING') setStep('DEDICATION');
-    else if (step === 'PAYMENT') {
+    else if (step === 'REVIEW') {
       if (product === ProductType.HARDCOVER) setStep('SHIPPING');
       else setStep('DEDICATION');
     }
@@ -68,33 +152,14 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, onClose, onComplete }) 
     shipping.phone.length >= 10 &&
     shipping.email?.includes('@');
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = matches && matches[0] || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    if (parts.length) return parts.join(' ');
-    else return value;
+  // Calculate total price from fetched prices
+  const getSelectedPrice = (): BookPrice | null => {
+    if (!prices) return null;
+    return product === ProductType.HARDCOVER ? prices.hardcover : prices.ebook;
   };
 
-  const formatExpiry = (value: string) => {
-    return value.replace(
-      /[^0-9]/g, ''
-    ).replace(
-      /^([2-9])$/g, '0$1'
-    ).replace(
-      /^(1{1}[3-9]{1})$/g, '0$1'
-    ).replace(
-      /^0{1,2}$/g, '0'
-    ).replace(
-      /^([0-1]{1}[0-2]{1})([0-9]{1,2}).*/g, '$1/$2'
-    ).substring(0, 5);
-  };
-
-  const totalPrice = product === ProductType.HARDCOVER ? 47.98 : 12.99;
+  const selectedPrice = getSelectedPrice();
+  const totalPrice = selectedPrice ? selectedPrice.amount / 100 : 0;
 
   return (
     <div className="fixed inset-0 z-[150] bg-gunmetal/90 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-500">
@@ -102,7 +167,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, onClose, onComplete }) 
         
         {/* Header */}
         <div className="p-8 border-b border-silver flex justify-between items-center bg-white relative">
-          <div className="absolute top-0 left-0 h-1 bg-pacific-cyan transition-all duration-700" style={{ width: `${(step === 'PRODUCT' ? 20 : step === 'DEDICATION' ? 40 : step === 'SHIPPING' ? 60 : step === 'PAYMENT' ? 80 : 100)}%` }}></div>
+          <div className="absolute top-0 left-0 h-1 bg-pacific-cyan transition-all duration-700" style={{ width: `${(step === 'PRODUCT' ? 25 : step === 'DEDICATION' ? 50 : step === 'SHIPPING' ? 75 : 100)}%` }}></div>
           <div>
             <h2 className="text-2xl font-black text-gunmetal">Studio Checkout</h2>
             <p className="text-[10px] text-blue-slate font-black uppercase tracking-[0.3em] mt-1">
@@ -120,33 +185,62 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, onClose, onComplete }) 
                 <h3 className="text-2xl font-black text-gunmetal">Pick Your Edition</h3>
                 <p className="text-blue-slate font-medium">How should we deliver the magic?</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button 
-                  onClick={() => setProduct(ProductType.HARDCOVER)}
-                  className={`group relative p-8 rounded-[2.5rem] border-4 text-left transition-all ${product === ProductType.HARDCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'}`}
-                >
-                  {product === ProductType.HARDCOVER && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
-                  <div className="flex justify-between items-start mb-6">
-                    <span className="text-5xl group-hover:scale-110 transition-transform">📖</span>
-                    <span className="font-black text-pacific-cyan text-xl">$39.99</span>
-                  </div>
-                  <h3 className="font-black text-gunmetal text-xl">Hardcover</h3>
-                  <p className="text-xs text-blue-slate mt-2 leading-relaxed">Premium 24-page archival physical book shipped to your door.</p>
-                </button>
 
-                <button 
-                  onClick={() => setProduct(ProductType.EBOOK)}
-                  className={`group relative p-8 rounded-[2.5rem] border-4 text-left transition-all ${product === ProductType.EBOOK ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'}`}
-                >
-                   {product === ProductType.EBOOK && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
-                  <div className="flex justify-between items-start mb-6">
-                    <span className="text-5xl group-hover:scale-110 transition-transform">📱</span>
-                    <span className="font-black text-pacific-cyan text-xl">$12.99</span>
+              {/* Loading state */}
+              {pricesLoading && (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="w-12 h-12 border-4 border-pacific-cyan/20 border-t-pacific-cyan rounded-full animate-spin"></div>
+                  <p className="text-blue-slate font-medium">Loading prices...</p>
+                </div>
+              )}
+
+              {/* Error state */}
+              {pricesError && !pricesLoading && (
+                <div className="text-center py-12 space-y-4">
+                  <span className="text-5xl">⚠️</span>
+                  <p className="text-red-500 font-bold">Failed to load prices</p>
+                  <p className="text-blue-slate text-sm">{pricesError}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-2 bg-pacific-cyan text-white font-bold rounded-full hover:bg-pacific-cyan/90 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {/* Product selection */}
+              {!pricesLoading && !pricesError && prices && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Hardcover - Coming Soon */}
+                  <div
+                    className="group relative p-8 rounded-[2.5rem] border-4 text-left border-silver bg-gray-50 opacity-60 cursor-not-allowed"
+                  >
+                    <div className="absolute -top-3 -right-3 bg-blue-slate text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>
+                    <div className="flex justify-between items-start mb-6">
+                      <span className="text-5xl grayscale">📖</span>
+                      <span className="font-black text-blue-slate text-xl">TBD</span>
+                    </div>
+                    <h3 className="font-black text-gunmetal text-xl">Hardcover</h3>
+                    <p className="text-xs text-blue-slate mt-2 leading-relaxed">Premium 24-page archival physical book shipped to your door.</p>
                   </div>
-                  <h3 className="font-black text-gunmetal text-xl">Digital Ebook</h3>
-                  <p className="text-xs text-blue-slate mt-2 leading-relaxed">Instant high-resolution PDF for tablets and unlimited sharing.</p>
-                </button>
-              </div>
+
+                  {/* Ebook - Available */}
+                  <button
+                    onClick={() => setProduct(ProductType.EBOOK)}
+                    disabled={!prices.ebook}
+                    className={`group relative p-8 rounded-[2.5rem] border-4 text-left transition-all ${product === ProductType.EBOOK ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.ebook ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    {product === ProductType.EBOOK && prices.ebook && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                    <div className="flex justify-between items-start mb-6">
+                      <span className="text-5xl group-hover:scale-110 transition-transform">📱</span>
+                      <span className="font-black text-pacific-cyan text-xl">{prices.ebook?.displayPrice || 'N/A'}</span>
+                    </div>
+                    <h3 className="font-black text-gunmetal text-xl">{prices.ebook?.productName || 'Digital Ebook'}</h3>
+                    <p className="text-xs text-blue-slate mt-2 leading-relaxed">Instant high-resolution PDF for tablets and unlimited sharing.</p>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -208,109 +302,110 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, onClose, onComplete }) 
             </div>
           )}
 
-          {step === 'PAYMENT' && (
-            <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
-               <div className="text-center bg-gunmetal text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl">💳</div>
-                  <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Secure Payment Gateway</p>
-                  <h3 className="text-4xl font-black text-pacific-cyan">${totalPrice.toFixed(2)}</h3>
-                  <p className="text-[10px] font-bold mt-2 opacity-50 uppercase tracking-[0.2em]">Billed as: ONCE UPON A DRAWING</p>
-               </div>
+          {step === 'REVIEW' && (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+              <div className="text-center">
+                <span className="text-5xl mb-4 inline-block">🛒</span>
+                <h3 className="text-2xl font-black text-gunmetal">Review Your Order</h3>
+                <p className="text-blue-slate font-medium">Confirm details before checkout</p>
+              </div>
 
-               <div className="space-y-6">
-                  <div>
-                    <label className="text-[10px] font-black text-blue-slate uppercase mb-2 block tracking-widest">Card Number</label>
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        maxLength={19}
-                        placeholder="0000 0000 0000 0000"
-                        value={cardData.number}
-                        onChange={e => setCardData({...cardData, number: formatCardNumber(e.target.value)})}
-                        className="w-full p-5 bg-white border-4 border-silver rounded-2xl focus:border-pacific-cyan outline-none font-mono text-lg font-bold text-gunmetal shadow-sm" 
-                      />
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
-                        <div className={`w-8 h-5 rounded bg-blue-600 transition-opacity ${cardData.number.startsWith('4') ? 'opacity-100' : 'opacity-20'}`}></div>
-                        <div className={`w-8 h-5 rounded bg-orange-500 transition-opacity ${cardData.number.startsWith('5') ? 'opacity-100' : 'opacity-20'}`}></div>
-                      </div>
+              {/* Order Summary */}
+              <div className="bg-white rounded-[2rem] border-4 border-silver p-6 space-y-4">
+                <div className="flex items-center justify-between pb-4 border-b border-silver">
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl">{product === ProductType.EBOOK ? '📱' : '📖'}</span>
+                    <div>
+                      <h4 className="font-black text-gunmetal">{selectedPrice?.productName || 'Digital Storybook'}</h4>
+                      <p className="text-xs text-blue-slate">"{analysis.storyTitle}"</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-[10px] font-black text-blue-slate uppercase mb-2 block tracking-widest">Expiry Date</label>
-                      <input 
-                        type="text" 
-                        placeholder="MM/YY"
-                        value={cardData.expiry}
-                        onChange={e => setCardData({...cardData, expiry: formatExpiry(e.target.value)})}
-                        className="w-full p-5 bg-white border-4 border-silver rounded-2xl focus:border-pacific-cyan outline-none font-mono text-lg font-bold text-gunmetal shadow-sm" 
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black text-blue-slate uppercase mb-2 block tracking-widest">CVC</label>
-                      <input 
-                        type="text" 
-                        placeholder="123"
-                        maxLength={3}
-                        value={cardData.cvc}
-                        onChange={e => setCardData({...cardData, cvc: e.target.value.replace(/\D/g, '')})}
-                        className="w-full p-5 bg-white border-4 border-silver rounded-2xl focus:border-pacific-cyan outline-none font-mono text-lg font-bold text-gunmetal shadow-sm" 
-                      />
-                    </div>
+                  <span className="font-black text-pacific-cyan text-xl">{selectedPrice?.displayPrice}</span>
+                </div>
+
+                {dedication && (
+                  <div className="py-4 border-b border-silver">
+                    <p className="text-[10px] font-black text-blue-slate uppercase tracking-widest mb-2">Dedication</p>
+                    <p className="text-gunmetal font-serif italic">"{dedication}"</p>
                   </div>
-               </div>
+                )}
 
-               <div className="flex items-center gap-3 p-4 bg-off-white rounded-2xl border-2 border-silver border-dashed">
-                  <div className="text-2xl">🔒</div>
-                  <p className="text-[10px] text-blue-slate font-bold uppercase tracking-widest leading-relaxed">
-                    End-to-end encrypted with Stripe-Grade security. Your card data is never stored on our servers.
-                  </p>
-               </div>
-            </div>
-          )}
+                <div className="flex justify-between items-center pt-2">
+                  <span className="font-black text-gunmetal text-lg">Total</span>
+                  <span className="font-black text-pacific-cyan text-2xl">{selectedPrice?.displayPrice}</span>
+                </div>
+              </div>
 
-          {step === 'PROCESSING' && (
-            <div className="flex flex-col items-center justify-center h-80 space-y-8 text-center animate-in zoom-in-95 duration-1000">
-               <div className="relative">
-                 <div className="w-32 h-32 border-8 border-pacific-cyan/10 border-t-pacific-cyan rounded-full animate-spin"></div>
-                 <div className="absolute inset-0 flex items-center justify-center text-4xl">🏛️</div>
-               </div>
-               <div className="space-y-2">
-                 <h3 className="text-3xl font-black text-gunmetal">Verifying Funds</h3>
-                 <p className="text-blue-slate font-bold uppercase tracking-[0.3em] text-[10px]">Contacting Financial Wizards...</p>
-               </div>
-               <div className="max-w-xs text-xs text-silver font-medium italic">
-                 "One moment while we secure the magic ink for your edition."
-               </div>
+              {/* Checkout Error */}
+              {checkoutError && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center">
+                  <p className="text-red-600 font-bold text-sm">{checkoutError}</p>
+                </div>
+              )}
+
+              {/* Stripe Redirect Notice */}
+              <div className="flex items-center gap-3 p-4 bg-off-white rounded-2xl border-2 border-silver border-dashed">
+                <div className="text-2xl">🔒</div>
+                <p className="text-[10px] text-blue-slate font-bold uppercase tracking-widest leading-relaxed">
+                  You'll be redirected to Stripe's secure checkout to complete your payment.
+                </p>
+              </div>
+
+              {/* Stripe Badge */}
+              <div className="flex justify-center items-center gap-2 text-silver">
+                <span className="text-xs font-medium">Powered by</span>
+                <span className="font-black text-[#635BFF]">stripe</span>
+              </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        {step !== 'PROCESSING' && (
-          <div className="p-8 border-t border-silver bg-white flex items-center justify-between">
-            <button 
-              onClick={step === 'PRODUCT' ? onClose : handleBack} 
-              className="px-6 py-3 font-black text-blue-slate uppercase tracking-widest text-xs hover:text-gunmetal transition-colors"
+        <div className="p-8 border-t border-silver bg-white flex items-center justify-between">
+          <button
+            onClick={step === 'PRODUCT' ? onClose : handleBack}
+            disabled={isCheckingOut}
+            className="px-6 py-3 font-black text-blue-slate uppercase tracking-widest text-xs hover:text-gunmetal transition-colors disabled:opacity-50"
+          >
+            {step === 'PRODUCT' ? 'Back to Gallery' : 'Previous Step'}
+          </button>
+
+          {step === 'REVIEW' ? (
+            <Button
+              size="lg"
+              onClick={handleCheckout}
+              disabled={isCheckingOut || !selectedPrice}
             >
-              {step === 'PRODUCT' ? 'Back to Gallery' : 'Previous Step'}
-            </button>
-            
-            <Button 
+              <span className="flex items-center gap-2">
+                {isCheckingOut ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Redirecting...
+                  </>
+                ) : (
+                  <>
+                    Proceed to Checkout
+                    <span className="text-lg">🔒</span>
+                  </>
+                )}
+              </span>
+            </Button>
+          ) : (
+            <Button
               size="lg"
               onClick={handleNext}
               disabled={
-                (step === 'SHIPPING' && !isShippingValid) || 
-                (step === 'PAYMENT' && !isPayEnabled)
+                (step === 'PRODUCT' && (pricesLoading || !!pricesError || !selectedPrice)) ||
+                (step === 'SHIPPING' && !isShippingValid)
               }
             >
               <span className="flex items-center gap-2">
-                {step === 'PAYMENT' ? 'Complete Purchase 🚀' : 'Continue Step'}
+                Continue
                 <span className="text-lg">→</span>
               </span>
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       
       <style>{`

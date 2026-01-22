@@ -34,6 +34,7 @@ import Confirmation from './components/Confirmation';
 import InfoPages, { InfoPageType } from './components/InfoPages';
 import PricingModal from './components/PricingModal';
 import PurchaseSuccess from './components/PurchaseSuccess';
+import AdminDashboard from './components/AdminDashboard';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -59,6 +60,7 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [creationSaved, setCreationSaved] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentCreationId, setCurrentCreationId] = useState<string | null>(null);
 
   // My Creations gallery state
   const [showMyCreations, setShowMyCreations] = useState(false);
@@ -70,6 +72,9 @@ const App: React.FC = () => {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+
+  // Admin dashboard state
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   // Supabase Auth Listener
   useEffect(() => {
@@ -160,6 +165,20 @@ const App: React.FC = () => {
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
     }
+  }, []);
+
+  // Check for admin route
+  useEffect(() => {
+    const checkAdminRoute = () => {
+      const isAdminPath = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+      setShowAdminDashboard(isAdminPath);
+    };
+
+    checkAdminRoute();
+
+    // Listen for popstate (back/forward navigation)
+    window.addEventListener('popstate', checkAdminRoute);
+    return () => window.removeEventListener('popstate', checkAdminRoute);
   }, []);
 
   const refreshCreditBalance = async () => {
@@ -390,6 +409,7 @@ const App: React.FC = () => {
     setCreationSaved(false);
     setSaveStatus(null);
     setCurrentDrawingId(undefined);
+    setCurrentCreationId(null);
     setViewingCreation(null);
     setShowMyCreations(false);
     setShowOutOfCredits(false);
@@ -450,6 +470,9 @@ const App: React.FC = () => {
         });
 
         if (result.success && result.creationId) {
+          // Store the creation ID for order flow
+          setCurrentCreationId(result.creationId);
+
           // Deduct credit after successful creation save
           try {
             const creditResult = await useCredit(state.user!.id, result.creationId);
@@ -543,6 +566,31 @@ const App: React.FC = () => {
 
   const isImmersiveStep = state.step === AppStep.RESULT || state.step === AppStep.ANIMATING || showStorybook;
 
+  const handleExitAdmin = () => {
+    setShowAdminDashboard(false);
+    window.history.pushState({}, '', '/');
+  };
+
+  const handleAdminLogin = () => {
+    setShowAdminDashboard(false);
+    window.history.pushState({}, '', '/');
+    setAuthInitialIsLogin(true);
+    setState(prev => ({ ...prev, step: AppStep.AUTH }));
+  };
+
+  // Render Admin Dashboard if on /admin route
+  if (showAdminDashboard) {
+    return (
+      <AdminDashboard
+        userEmail={state.user?.email || null}
+        isAuthenticated={!!state.user}
+        onLogin={handleAdminLogin}
+        onBack={handleExitAdmin}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen bg-off-white text-gunmetal relative flex flex-col ${showStorybook ? 'overflow-hidden' : ''}`}>
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -629,9 +677,12 @@ const App: React.FC = () => {
                 onBack={() => setState(prev => ({...prev, step: AppStep.PRODUCT_SELECT}))}
               />
             )}
-            {state.step === AppStep.ORDER_FLOW && state.analysis && (
+            {state.step === AppStep.ORDER_FLOW && state.analysis && state.user && (currentCreationId || viewingCreation?.id) && (
               <OrderFlow
                 analysis={state.analysis}
+                userId={state.user.id}
+                creationId={(viewingCreation?.id || currentCreationId)!}
+                userEmail={state.user.email}
                 onClose={() => setState(prev => ({...prev, step: AppStep.CHECKOUT}))}
                 onComplete={(product, dedication, shipping) => {
                   handleOrderComplete(product, dedication, shipping);

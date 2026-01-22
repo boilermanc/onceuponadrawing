@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { DrawingAnalysis } from '../types';
+import { FREE_CREATION_LIMIT } from './creditsService';
 
 // ============================================================================
 // TYPES
@@ -212,7 +213,7 @@ export async function canSaveCreation(userId: string): Promise<CanSaveResult> {
     new Date(profile.subscription_expires_at) > new Date();
 
   const savesUsed = profile.free_saves_used || 0;
-  const limit = isPremium ? Infinity : 5;
+  const limit = isPremium ? Infinity : FREE_CREATION_LIMIT;
 
   // Determine reason if canSave is false
   let reason: 'limit_reached' | 'subscription_expired' | undefined;

@@ -12,7 +12,7 @@ const ProductSelection: React.FC<ProductSelectionProps> = ({ onSelect, onBack })
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="text-center mb-12">
-        <h2 className="text-4xl md:text-5xl font-black text-gunmetal mb-4">Choose Your Keepake</h2>
+        <h2 className="text-4xl md:text-5xl font-black text-gunmetal mb-4">Choose Your Keepsake</h2>
         <p className="text-xl text-blue-slate font-medium">How would you like to preserve this magical story?</p>
       </div>
 
