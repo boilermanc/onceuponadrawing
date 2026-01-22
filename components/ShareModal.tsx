@@ -1,3 +1,4 @@
+// TODO: Re-enable when public shareable pages are built
 import React, { useState, useEffect, useCallback } from 'react';
 
 interface ShareModalProps {

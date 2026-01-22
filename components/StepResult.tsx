@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { DrawingAnalysis } from '../types';
-import ShareModal from './ShareModal';
 
 interface StepResultProps {
   videoUrl: string;
@@ -12,8 +11,6 @@ interface StepResultProps {
 }
 
 const StepResult: React.FC<StepResultProps> = ({ videoUrl, onReset, analysis, onOpenStory, onOrder, isStoryLoading }) => {
-  const [showShareModal, setShowShareModal] = useState(false);
-
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center animate-in fade-in duration-1000 overflow-hidden">
       {/* Immersive Background Blur */}
@@ -70,37 +67,17 @@ const StepResult: React.FC<StepResultProps> = ({ videoUrl, onReset, analysis, on
           )}
         </button>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-pacific-cyan to-blue-slate text-white rounded-xl font-black text-sm uppercase tracking-wide transition-all hover:scale-105 active:scale-95 shadow-lg shadow-pacific-cyan/20 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-            </svg>
-            SHARE
-          </button>
-          <button
-            onClick={onReset}
-            className="px-6 py-3 bg-silver/10 hover:bg-silver/20 text-white/60 rounded-xl font-black text-sm uppercase tracking-wide transition-all active:scale-95"
-          >
-            🔄 NEW
-          </button>
-        </div>
+        <button
+          onClick={onReset}
+          className="px-8 py-3 bg-silver/10 hover:bg-silver/20 text-white/60 rounded-xl font-black text-sm uppercase tracking-wide transition-all active:scale-95"
+        >
+          🔄 NEW DRAWING
+        </button>
       </div>
 
       <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/20 text-[10px] font-black uppercase tracking-[0.4em]">
         Once Upon a Drawing Studio
       </p>
-
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        storyTitle={analysis?.storyTitle || 'My Story'}
-        artistName={analysis?.artistName || 'A Young Artist'}
-        videoUrl={videoUrl}
-      />
     </div>
   );
 };

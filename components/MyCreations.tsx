@@ -2,30 +2,30 @@ import React, { useState, useEffect } from 'react';
 import {
   getCreations,
   getCreation,
-  deleteCreation,
   canSaveCreation,
   Creation,
   CreationWithSignedUrls,
 } from '../services/creationsService';
+import BookPurchaseModal from './BookPurchaseModal';
 
 interface MyCreationsProps {
   userId: string;
   onBack: () => void;
   onOpenCreation: (creation: CreationWithSignedUrls) => void;
   onStartCreation: () => void;
+  onGetCredits: () => void;
 }
 
-const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreation, onStartCreation }) => {
+const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreation, onStartCreation, onGetCredits }) => {
   console.log('[MyCreations] Component rendered, userId:', userId);
 
   const [creations, setCreations] = useState<Creation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ savesUsed: number; limit: number } | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loadingCreationId, setLoadingCreationId] = useState<string | null>(null);
+  const [bookPurchaseCreation, setBookPurchaseCreation] = useState<Creation | null>(null);
 
   // Fetch creations on mount
   useEffect(() => {
@@ -86,38 +86,6 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
     }
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, creationId: string) => {
-    e.stopPropagation();
-    setDeleteConfirm(creationId);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm) return;
-
-    setIsDeleting(true);
-    try {
-      const success = await deleteCreation(userId, deleteConfirm);
-      if (success) {
-        setCreations(prev => prev.filter(c => c.id !== deleteConfirm));
-        setSaveStatus(prev =>
-          prev ? { ...prev, savesUsed: Math.max(0, prev.savesUsed - 1) } : null
-        );
-        setToast({ type: 'success', text: 'Creation deleted' });
-        setTimeout(() => setToast(null), 3000);
-      } else {
-        setToast({ type: 'error', text: 'Failed to delete creation' });
-        setTimeout(() => setToast(null), 3000);
-      }
-    } catch (err) {
-      console.error('Failed to delete creation:', err);
-      setToast({ type: 'error', text: 'Failed to delete creation' });
-      setTimeout(() => setToast(null), 3000);
-    } finally {
-      setIsDeleting(false);
-      setDeleteConfirm(null);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -127,7 +95,35 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
     });
   };
 
-  const creationToDelete = creations.find(c => c.id === deleteConfirm);
+  const handleBookClick = (e: React.MouseEvent, creation: Creation) => {
+    e.stopPropagation();
+    setBookPurchaseCreation(creation);
+  };
+
+  const handleDownloadVideo = async (e: React.MouseEvent, creation: Creation) => {
+    e.stopPropagation();
+    // Fetch full creation to get video URL, then trigger download
+    try {
+      setToast({ type: 'success', text: 'Preparing download...' });
+      const fullCreation = await getCreation(userId, creation.id);
+      if (fullCreation?.video_url) {
+        const link = document.createElement('a');
+        link.href = fullCreation.video_url;
+        link.download = `${creation.title.replace(/[^a-z0-9]/gi, '-')}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setToast({ type: 'success', text: 'Download started!' });
+      } else {
+        setToast({ type: 'error', text: 'Video not available' });
+      }
+    } catch (err) {
+      console.error('Failed to download video:', err);
+      setToast({ type: 'error', text: 'Download failed' });
+    }
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const isPremium = saveStatus?.limit === Infinity;
 
   return (
@@ -144,25 +140,38 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-black text-gunmetal">My Creations</h1>
+            <div>
+              <p className="text-xs font-bold text-pacific-cyan uppercase tracking-wider">Once Upon A Drawing</p>
+              <h1 className="text-xl md:text-2xl font-black text-gunmetal">My Creations</h1>
+            </div>
           </div>
 
-          {/* Save count badge */}
+          {/* Save count and purchase button */}
           {saveStatus && (
-            <div className={`px-4 py-2 rounded-full text-sm font-bold ${
-              isPremium
-                ? 'bg-gradient-to-r from-soft-gold/20 to-soft-gold/10 text-soft-gold border border-soft-gold/30'
-                : 'bg-pacific-cyan/10 text-pacific-cyan border border-pacific-cyan/30'
-            }`}>
-              {isPremium ? (
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  Premium
-                </span>
-              ) : (
-                <span>{saveStatus.savesUsed} of {saveStatus.limit} saved</span>
+            <div className="flex items-center gap-2">
+              <div className={`px-3 py-2 rounded-full text-sm font-bold ${
+                isPremium
+                  ? 'bg-gradient-to-r from-soft-gold/20 to-soft-gold/10 text-soft-gold border border-soft-gold/30'
+                  : 'bg-pacific-cyan/10 text-pacific-cyan border border-pacific-cyan/30'
+              }`}>
+                {isPremium ? (
+                  <span className="flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    Premium
+                  </span>
+                ) : (
+                  <span>{saveStatus.savesUsed} of {saveStatus.limit} saved</span>
+                )}
+              </div>
+              {!isPremium && (
+                <button
+                  onClick={onGetCredits}
+                  className="px-3 py-2 bg-soft-gold hover:bg-soft-gold/90 text-gunmetal rounded-full text-sm font-bold transition-colors shadow-sm"
+                >
+                  Save More
+                </button>
               )}
             </div>
           )}
@@ -267,30 +276,6 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
                     </div>
                   )}
 
-                  {/* Action icons overlay at bottom */}
-                  {!creation.is_locked && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent pt-8 pb-2 px-3">
-                      <div className="flex items-center justify-center gap-4">
-                        <span className="text-lg text-white/90" title="View Storybook">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
-                        </span>
-                        <span className="text-lg text-white/90" title="Watch Video">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
-                          </svg>
-                        </span>
-                        <span className="text-lg text-white/90" title="Share">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-                          </svg>
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Hover overlay - "View Story" */}
                   {!creation.is_locked && loadingCreationId !== creation.id && (
                     <div className="absolute inset-0 bg-gunmetal/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -303,16 +288,6 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
                       <span className="text-white font-bold text-sm">View Story</span>
                     </div>
                   )}
-
-                  {/* Delete button */}
-                  <button
-                    onClick={(e) => handleDeleteClick(e, creation.id)}
-                    className="absolute top-3 right-3 w-8 h-8 rounded-lg bg-white/90 hover:bg-red-500 text-blue-slate hover:text-white shadow-md opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
                 </div>
 
                 {/* Card content */}
@@ -328,66 +303,36 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
                       {formatDate(creation.created_at)}
                     </span>
                   </div>
+
+                  {/* Action buttons row - only for unlocked creations */}
+                  {!creation.is_locked && (
+                    <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-gray-100">
+                      <button
+                        onClick={(e) => handleBookClick(e, creation)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-semibold text-sm transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+Order Book
+                      </button>
+                      <button
+                        onClick={(e) => handleDownloadVideo(e, creation)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download Movie
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
       </main>
-
-      {/* Delete confirmation modal */}
-      {deleteConfirm && creationToDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setDeleteConfirm(null)}
-        >
-          <div className="absolute inset-0 bg-gunmetal/70 backdrop-blur-sm" />
-          <div
-            className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex justify-center mb-4">
-                <div className="w-14 h-14 rounded-xl bg-red-100 flex items-center justify-center">
-                  <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-              </div>
-              <h3 className="text-xl font-black text-gunmetal text-center mb-2">
-                Delete Creation?
-              </h3>
-              <p className="text-blue-slate text-center text-sm mb-6">
-                Delete "<span className="font-bold text-gunmetal">{creationToDelete.title}</span>"?
-                {!isPremium && ' This will free up a save slot.'}
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={isDeleting}
-                  className="flex-1 py-3 bg-silver/20 hover:bg-silver/40 text-gunmetal rounded-xl font-bold transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isDeleting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    'Delete'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Toast notification */}
       {toast && (
@@ -399,6 +344,18 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
           {toast.text}
         </div>
       )}
+
+      {/* Book Purchase Modal */}
+      <BookPurchaseModal
+        isOpen={!!bookPurchaseCreation}
+        onClose={() => setBookPurchaseCreation(null)}
+        creation={bookPurchaseCreation ? {
+          id: bookPurchaseCreation.id,
+          title: bookPurchaseCreation.title,
+          artistName: bookPurchaseCreation.artist_name || 'Young Artist',
+          thumbnailUrl: bookPurchaseCreation.thumbnail_url,
+        } : null}
+      />
     </div>
   );
 };

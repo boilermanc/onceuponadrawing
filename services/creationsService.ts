@@ -186,7 +186,7 @@ export async function canSaveCreation(userId: string): Promise<CanSaveResult> {
       canSave: false,
       reason: 'limit_reached',
       savesUsed: 0,
-      limit: 5,
+      limit: 3,
     };
   }
 
@@ -202,7 +202,7 @@ export async function canSaveCreation(userId: string): Promise<CanSaveResult> {
     return {
       canSave: Boolean(canSave),
       savesUsed: 0,
-      limit: 5,
+      limit: 3,
     };
   }
 

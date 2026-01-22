@@ -12,6 +12,7 @@ interface StorybookProps {
   limit: number;
   isSaving: boolean;
   isAlreadySaved?: boolean;
+  onGetCredits: () => void;
 }
 
 const SFX = {
@@ -31,7 +32,8 @@ const Storybook: React.FC<StorybookProps> = ({
   savesUsed,
   limit,
   isSaving,
-  isAlreadySaved
+  isAlreadySaved,
+  onGetCredits
 }) => {
   const [currentPage, setCurrentPage] = useState(0); 
   const [isTurning, setIsTurning] = useState(false);
@@ -199,23 +201,55 @@ const Storybook: React.FC<StorybookProps> = ({
 
                     <div className="flex flex-col gap-4 pt-4 w-full max-w-sm mx-auto">
                        {/* Save to Gallery Section */}
-                       <div className="flex flex-col items-center">
+                       <div className="flex flex-col items-center gap-3">
                          {isAlreadySaved ? (
-                           <div className="flex items-center gap-2 px-4 py-2 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-sm font-bold">
-                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                             </svg>
-                             Saved to Gallery
-                           </div>
+                           /* Already saved - show confirmation + remaining saves + upsell */
+                           <>
+                             <div className="flex items-center gap-2 px-4 py-2 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-sm font-bold">
+                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                               </svg>
+                               Saved to Gallery
+                             </div>
+                             {limit !== Infinity && (
+                               <div className="text-center">
+                                 <p className="text-sm text-blue-slate">
+                                   {limit - savesUsed > 0
+                                     ? `${limit - savesUsed} free save${limit - savesUsed !== 1 ? 's' : ''} remaining`
+                                     : 'No free saves remaining'
+                                   }
+                                 </p>
+                                 <button
+                                   onClick={onGetCredits}
+                                   className="mt-2 text-sm font-bold text-soft-gold hover:text-amber-600 underline transition-colors"
+                                 >
+                                   Get more credits →
+                                 </button>
+                               </div>
+                             )}
+                           </>
+                         ) : savesUsed >= limit && limit !== Infinity ? (
+                           /* At limit - show purchase button instead of save */
+                           <button
+                             onClick={onGetCredits}
+                             className="flex flex-col items-center justify-center gap-1 w-full py-5 rounded-3xl font-black transition-all bg-gradient-to-r from-soft-gold to-amber-500 text-white shadow-xl shadow-soft-gold/30 hover:scale-105 active:scale-95"
+                           >
+                             <div className="flex items-center gap-2">
+                               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                               </svg>
+                               <span className="text-lg">GET CREDITS TO SAVE</span>
+                             </div>
+                             <span className="text-[10px] uppercase tracking-widest font-black opacity-80">
+                               All {limit} free saves used
+                             </span>
+                           </button>
                          ) : (
+                           /* Has saves remaining - show save button */
                            <button
                              onClick={onSave}
                              disabled={isSaving}
-                             className={`flex flex-col items-center justify-center gap-1 w-full py-5 rounded-3xl font-black transition-all ${
-                               savesUsed >= limit && limit !== Infinity
-                                 ? 'bg-silver/30 text-blue-slate border-2 border-silver/50'
-                                 : 'bg-gradient-to-r from-pacific-cyan to-soft-gold text-white shadow-xl shadow-pacific-cyan/20 hover:scale-105 active:scale-95'
-                             }`}
+                             className="flex flex-col items-center justify-center gap-1 w-full py-5 rounded-3xl font-black transition-all bg-gradient-to-r from-pacific-cyan to-soft-gold text-white shadow-xl shadow-pacific-cyan/20 hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100"
                            >
                              {isSaving ? (
                                <>
@@ -234,14 +268,10 @@ const Storybook: React.FC<StorybookProps> = ({
                                      <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] uppercase tracking-wider">Premium</span>
                                    )}
                                  </div>
-                                 <span className={`text-[10px] uppercase tracking-widest font-black ${
-                                   savesUsed >= limit && limit !== Infinity ? 'text-blue-slate' : 'opacity-70'
-                                 }`}>
+                                 <span className="text-[10px] uppercase tracking-widest font-black opacity-70">
                                    {limit === Infinity
                                      ? 'Unlimited saves'
-                                     : savesUsed >= limit
-                                       ? 'Upgrade for unlimited saves'
-                                       : `${limit - savesUsed} free save${limit - savesUsed !== 1 ? 's' : ''} remaining`
+                                     : `${limit - savesUsed} free save${limit - savesUsed !== 1 ? 's' : ''} remaining`
                                    }
                                  </span>
                                </>

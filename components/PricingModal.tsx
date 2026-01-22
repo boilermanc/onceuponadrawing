@@ -8,6 +8,11 @@ interface PricingModalProps {
   onSelectPack: (packName: 'starter' | 'popular' | 'best_value') => void;
   isLoading?: boolean;
   isAuthenticated?: boolean;
+  // Save-while-browsing props
+  isSaving?: boolean;
+  savesUsed?: number;
+  saveLimit?: number;
+  saveComplete?: boolean;
 }
 
 const packs = [
@@ -47,8 +52,15 @@ const PricingModal: React.FC<PricingModalProps> = ({
   onSelectPack,
   isLoading = false,
   isAuthenticated = false,
+  isSaving = false,
+  savesUsed = 0,
+  saveLimit = 3,
+  saveComplete = false,
 }) => {
   if (!isOpen) return null;
+
+  const showSaveBanner = isSaving || saveComplete;
+  const savesRemaining = saveLimit - savesUsed;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -72,11 +84,50 @@ const PricingModal: React.FC<PricingModalProps> = ({
         </button>
 
         <div className="p-8">
+          {/* Save Status Banner */}
+          {showSaveBanner && (
+            <div className={`mb-6 p-4 rounded-2xl ${saveComplete ? 'bg-pacific-cyan/10 border border-pacific-cyan/30' : 'bg-pacific-cyan/5 border border-pacific-cyan/20'}`}>
+              <div className="flex items-center gap-3">
+                {saveComplete ? (
+                  <div className="w-10 h-10 rounded-full bg-pacific-cyan/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-pacific-cyan" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-pacific-cyan/20 flex items-center justify-center flex-shrink-0">
+                    <div className="w-5 h-5 border-2 border-pacific-cyan border-t-transparent animate-spin rounded-full"></div>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <p className={`font-bold text-pacific-cyan`}>
+                    {saveComplete ? 'Saved! No purchase required.' : 'Saving your creation for free...'}
+                  </p>
+                  <p className="text-sm text-gunmetal/70">
+                    {saveComplete
+                      ? savesRemaining > 0
+                        ? `You have ${savesRemaining} of ${saveLimit} free save${savesRemaining !== 1 ? 's' : ''} remaining`
+                        : `All ${saveLimit} free saves used`
+                      : `You get ${saveLimit} free saves — this is save ${savesUsed + 1} of ${saveLimit}`
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gunmetal mb-2">Get More Credits</h2>
-            <p className="text-gunmetal/70 text-lg">Turn more treasured drawings into magical stories</p>
-            {currentBalance && currentBalance.freeRemaining > 0 && (
+            <h2 className="text-3xl font-bold text-gunmetal mb-2">
+              {showSaveBanner ? 'Want Even More Stories?' : 'Get More Credits'}
+            </h2>
+            <p className="text-gunmetal/70 text-lg">
+              {showSaveBanner
+                ? 'Get additional credits to create and save more magical stories'
+                : 'Turn more treasured drawings into magical stories'
+              }
+            </p>
+            {!showSaveBanner && currentBalance && currentBalance.freeRemaining > 0 && (
               <p className="mt-3 text-pacific-cyan font-semibold">
                 You have {currentBalance.freeRemaining} free creation{currentBalance.freeRemaining !== 1 ? 's' : ''} left
               </p>
@@ -152,9 +203,21 @@ const PricingModal: React.FC<PricingModalProps> = ({
           </div>
 
           {/* Footer note */}
-          <p className="text-center text-sm text-gunmetal/50">
+          <p className="text-center text-sm text-gunmetal/50 mb-4">
             Credits are valid for one year from purchase
           </p>
+
+          {/* Not right now button - shown when saving */}
+          {showSaveBanner && (
+            <div className="text-center pt-4 border-t border-gunmetal/10">
+              <button
+                onClick={onClose}
+                className="mt-2 text-pacific-cyan hover:text-pacific-cyan/80 font-semibold transition-colors"
+              >
+                {saveComplete ? 'Continue with free saves →' : 'No thanks, just save for free →'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

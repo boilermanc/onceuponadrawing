@@ -191,7 +191,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch save status:', err);
       // Default to free tier defaults
-      setSaveStatus({ savesUsed: 0, limit: 5 });
+      setSaveStatus({ savesUsed: 0, limit: 3 });
     }
 
     setShowStorybook(true);
@@ -419,7 +419,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Failed to check save status:', err);
       // Default to showing modal with free tier defaults
-      setSaveStatus({ savesUsed: 0, limit: 5 });
+      setSaveStatus({ savesUsed: 0, limit: 3 });
       setShowSaveModal(true);
     }
   };
@@ -429,48 +429,58 @@ const App: React.FC = () => {
       return;
     }
 
+    // Immediately open pricing modal and start saving in background
     setIsSaving(true);
     setSaveMessage(null);
+    setShowPricingModal(true);
 
-    try {
-      // Gather page images from analysis
-      const pageImages = state.analysis.pages
-        .map(page => page.imageUrl)
-        .filter((url): url is string => !!url);
+    // Run save in background (don't block UI)
+    const doSave = async () => {
+      try {
+        // Gather page images from analysis
+        const pageImages = state.analysis!.pages
+          .map(page => page.imageUrl)
+          .filter((url): url is string => !!url);
 
-      const result = await saveCreation(state.user.id, {
-        originalImage: state.originalImage,
-        videoUrl: state.finalVideoUrl,
-        analysis: state.analysis,
-        pageImages,
-      });
+        const result = await saveCreation(state.user!.id, {
+          originalImage: state.originalImage!,
+          videoUrl: state.finalVideoUrl!,
+          analysis: state.analysis!,
+          pageImages,
+        });
 
-      if (result.success && result.creationId) {
-        // Deduct credit after successful creation save
-        try {
-          const creditResult = await useCredit(state.user.id, result.creationId);
-          setCreditBalance(creditResult.newBalance);
-        } catch (creditErr) {
-          console.error('Failed to deduct credit:', creditErr);
-          // Don't fail the save if credit deduction fails
+        if (result.success && result.creationId) {
+          // Deduct credit after successful creation save
+          try {
+            const creditResult = await useCredit(state.user!.id, result.creationId);
+            setCreditBalance(creditResult.newBalance);
+          } catch (creditErr) {
+            console.error('Failed to deduct credit:', creditErr);
+            // Don't fail the save if credit deduction fails
+          }
+
+          setShowSaveModal(false);
+          setCreationSaved(true);
+          // Update save count (only for free tier users)
+          setSaveStatus(prev => {
+            if (prev && prev.limit !== Infinity) {
+              return { ...prev, savesUsed: prev.savesUsed + 1 };
+            }
+            return prev;
+          });
+        } else {
+          setSaveMessage({ type: 'error', text: result.error || 'Failed to save creation' });
         }
-
-        setShowSaveModal(false);
-        setCreationSaved(true);
-        setSaveMessage({ type: 'success', text: 'Creation saved to your gallery!' });
-        // Auto-clear success message but stay on storybook so they can still purchase
-        setTimeout(() => {
-          setSaveMessage(null);
-        }, 3000);
-      } else {
-        setSaveMessage({ type: 'error', text: result.error || 'Failed to save creation' });
+      } catch (err) {
+        console.error('Error saving creation:', err);
+        setSaveMessage({ type: 'error', text: 'An unexpected error occurred' });
+      } finally {
+        setIsSaving(false);
       }
-    } catch (err) {
-      console.error('Error saving creation:', err);
-      setSaveMessage({ type: 'error', text: 'An unexpected error occurred' });
-    } finally {
-      setIsSaving(false);
-    }
+    };
+
+    // Start save without awaiting (background)
+    doSave();
   };
 
   const handleDiscardCreation = () => {
@@ -648,9 +658,10 @@ const App: React.FC = () => {
           }}
           onSave={handleSaveCreation}
           savesUsed={saveStatus?.savesUsed ?? 0}
-          limit={saveStatus?.limit ?? 5}
+          limit={saveStatus?.limit ?? 3}
           isSaving={isSaving}
           isAlreadySaved={!!viewingCreation || creationSaved}
+          onGetCredits={() => setShowPricingModal(true)}
         />
       )}
 
@@ -660,7 +671,7 @@ const App: React.FC = () => {
         onSave={handleSaveCreation}
         onDiscard={handleDiscardCreation}
         savesUsed={saveStatus?.savesUsed ?? 0}
-        limit={saveStatus?.limit ?? 5}
+        limit={saveStatus?.limit ?? 3}
         isLoading={isSaving}
       />
 
@@ -690,6 +701,7 @@ const App: React.FC = () => {
               setShowMyCreations(false);
               setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
             }}
+            onGetCredits={() => setShowPricingModal(true)}
           />
         </div>
       )}
@@ -730,6 +742,10 @@ const App: React.FC = () => {
         onSelectPack={handleSelectPack}
         isLoading={isPurchasing}
         isAuthenticated={!!state.user}
+        isSaving={isSaving}
+        savesUsed={saveStatus?.savesUsed ?? 0}
+        saveLimit={saveStatus?.limit ?? 3}
+        saveComplete={creationSaved}
       />
 
       {/* Purchase Success */}
