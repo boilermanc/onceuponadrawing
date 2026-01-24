@@ -38,6 +38,18 @@ interface Creation {
   original_image_url: string;
   hero_image_url: string | null;
   story_pages: any[];
+  page_images?: string[];
+  original_image_path?: string;
+  is_featured?: boolean;
+  featured_at?: string;
+  featured_thumbnail_url?: string;
+  featured_page_url?: string;
+  featured_pages?: { url: string; text: string }[];
+  thumbnail_url?: string;
+  analysis_json?: {
+    pages?: { text: string; imageUrl?: string }[];
+    artistAge?: string;
+  };
   created_at: string;
 }
 
@@ -122,7 +134,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<BookOrder | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'preview' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'preview' | 'settings' | 'gallery'>('orders');
+
+  // Gallery state
+  const [featureLoading, setFeatureLoading] = useState<string | null>(null);
+  const [featureMessage, setFeatureMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [gallerySearch, setGallerySearch] = useState('');
+  const [gallerySortBy, setGallerySortBy] = useState<'created_at' | 'title' | 'artist_name'>('created_at');
+  const [gallerySortOrder, setGallerySortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -318,9 +337,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     if (isAdmin) {
       fetchOrders();
-      if (activeTab === 'preview') {
+      if (activeTab === 'preview' || activeTab === 'gallery') {
         fetchCreations();
-        fetchBookPrices(); // Fetch prices when preview tab is active
+        if (activeTab === 'preview') {
+          fetchBookPrices(); // Fetch prices when preview tab is active
+        }
       }
     }
   }, [isAdmin, activeTab]);
@@ -351,19 +372,50 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       console.log('[AdminDashboard] Fetching creations...');
       const { data, error: fetchError, count } = await supabase
         .from('creations')
-        .select('*', { count: 'exact' })
+        .select('*, is_featured, featured_at, featured_thumbnail_url, featured_page_url, featured_pages, analysis_json', { count: 'exact' })
         .order('created_at', { ascending: false })
         .limit(50); // Limit to most recent 50 creations
 
-      console.log('[AdminDashboard] Creations query result:', { data, error: fetchError, count });
+      console.log('[AdminDashboard] Creations query result:', { 
+        count: data?.length, 
+        error: fetchError,
+        firstCreation: data?.[0],
+        featuredCount: data?.filter(c => c.is_featured).length
+      });
 
       if (fetchError) {
         console.error('[AdminDashboard] Query error:', fetchError);
         throw fetchError;
       }
       
-      console.log(`[AdminDashboard] Found ${data?.length || 0} creations`);
-      setCreations(data || []);
+      console.log(`[AdminDashboard] Found ${data?.length || 0} creations, ${data?.filter(c => c.is_featured).length} featured`);
+      
+      // Generate public URLs for thumbnails
+      if (data && data.length > 0) {
+        const creationsWithThumbnails = data.map((creation) => {
+          // Try to get the first page image as thumbnail from outputs bucket
+          if (creation.page_images && creation.page_images.length > 0) {
+            const pagePath = creation.page_images[0];
+            console.log('[AdminDashboard] Getting thumbnail for creation:', creation.id, 'from outputs bucket, path:', pagePath);
+            
+            // Get public URL from outputs bucket
+            const { data: { publicUrl } } = supabase.storage
+              .from('outputs')
+              .getPublicUrl(pagePath);
+            
+            console.log('[AdminDashboard] Generated thumbnail URL:', publicUrl);
+            return { ...creation, thumbnail_url: publicUrl };
+          }
+          
+          // Return creation without thumbnail if no page_images
+          console.warn('[AdminDashboard] No page_images found for creation:', creation.id, creation.title);
+          return creation;
+        });
+        
+        setCreations(creationsWithThumbnails);
+      } else {
+        setCreations(data || []);
+      }
     } catch (err: any) {
       console.error('[AdminDashboard] Failed to fetch creations:', err);
       setError(err.message || 'Failed to fetch creations');
@@ -505,6 +557,188 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       );
     } finally {
       setPreviewLoading(null);
+    }
+  };
+
+  const handleFeatureCreation = async (creation: Creation) => {
+    setFeatureLoading(creation.id);
+    setFeatureMessage(null);
+    
+    // Give React a moment to render the loading state
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    try {
+      if (!creation.page_images || creation.page_images.length === 0) {
+        throw new Error('No page images available for this creation');
+      }
+
+      console.log('[AdminDashboard] Featuring creation:', creation.id);
+      console.log('[AdminDashboard] Raw page_images array:', creation.page_images);
+      console.log('[AdminDashboard] analysis_json:', creation.analysis_json);
+
+      // Upload up to 4 page images from the page_images array
+      const pagesToUpload = creation.page_images.slice(0, 4);
+      const featuredPages: { url: string; text: string }[] = [];
+
+      for (let i = 0; i < pagesToUpload.length; i++) {
+        const pagePath = pagesToUpload[i];
+
+        console.log(`[AdminDashboard] Processing page ${i}:`);
+        console.log(`  - Raw path: "${pagePath}"`);
+
+        try {
+          // Download the image from page-images bucket using authenticated download
+          console.log(`  - Downloading from page-images bucket (authenticated)...`);
+          const { data: imageData, error: downloadError } = await supabase.storage
+            .from('page-images')
+            .download(pagePath);
+
+          if (downloadError || !imageData) {
+            console.warn(`  ❌ Failed to download page ${i}:`, downloadError?.message || 'No data returned');
+            continue;
+          }
+
+          const imageBlob = imageData;
+          console.log(`  ✓ Downloaded (${imageBlob.size} bytes, type: ${imageBlob.type})`);
+
+          // Upload to public-gallery bucket with indexed name
+          const fileName = `${creation.id}-page-${i}.webp`;
+
+          console.log(`  - Uploading to public-gallery as: ${fileName}`);
+          const { error: uploadError } = await supabase.storage
+            .from('public-gallery')
+            .upload(fileName, imageBlob, {
+              contentType: imageBlob.type || 'image/webp',
+              upsert: true, // Overwrite if exists
+            });
+
+          if (uploadError) {
+            console.warn(`  ❌ Failed to upload page ${i}:`, uploadError);
+            continue;
+          }
+
+          // Get the public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('public-gallery')
+            .getPublicUrl(fileName);
+
+          // Get the corresponding text from analysis_json.pages
+          const pageText = creation.analysis_json?.pages?.[i]?.text || '';
+          console.log(`  - Page text: "${pageText.substring(0, 50)}${pageText.length > 50 ? '...' : ''}"`);
+
+          featuredPages.push({
+            url: publicUrl,
+            text: pageText,
+          });
+          console.log(`  ✓ Uploaded successfully! Public URL: ${publicUrl}`);
+        } catch (fetchError: any) {
+          console.warn(`  ❌ Error processing page ${i}:`, fetchError.message);
+          continue;
+        }
+      }
+
+      if (featuredPages.length === 0) {
+        throw new Error('Failed to upload any page images. Check console for details.');
+      }
+
+      console.log('[AdminDashboard] ✓ Successfully uploaded', featuredPages.length, 'page images with text');
+      console.log('[AdminDashboard] Featured pages:', featuredPages);
+
+      // Update the creation record
+      const { error: updateError } = await supabase
+        .from('creations')
+        .update({
+          is_featured: true,
+          featured_at: new Date().toISOString(),
+          featured_thumbnail_url: featuredPages[0].url, // First page for gallery grid
+          featured_page_url: featuredPages[0].url, // Keep for backward compatibility
+          featured_pages: featuredPages, // All uploaded pages with text
+        })
+        .eq('id', creation.id);
+
+      if (updateError) throw updateError;
+
+      console.log('[AdminDashboard] ✓ Creation featured successfully in database');
+
+      // Refresh creations list before clearing loading state
+      await fetchCreations();
+
+      setFeatureMessage({ type: 'success', text: `"${creation.title}" has been featured with ${featuredPages.length} pages!` });
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setFeatureMessage(null), 3000);
+    } catch (err: any) {
+      console.error('[AdminDashboard] ❌ Failed to feature creation:', err);
+      setFeatureMessage({ type: 'error', text: err.message || 'Failed to feature creation' });
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setFeatureMessage(null), 5000);
+    } finally {
+      setFeatureLoading(null);
+    }
+  };
+
+  const handleUnfeatureCreation = async (creation: Creation) => {
+    setFeatureLoading(creation.id);
+    setFeatureMessage(null);
+    
+    // Give React a moment to render the loading state
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    try {
+      console.log('[AdminDashboard] Unfeaturing creation:', creation.id);
+
+      // Delete all page images from public-gallery
+      const filesToDelete: string[] = [];
+      
+      // Collect all files to delete (up to 4 pages)
+      for (let i = 0; i < 4; i++) {
+        const fileName = `${creation.id}-page-${i}.webp`;
+        filesToDelete.push(fileName);
+      }
+
+      if (filesToDelete.length > 0) {
+        console.log('[AdminDashboard] Deleting page images:', filesToDelete);
+        const { error: deleteError } = await supabase.storage
+          .from('public-gallery')
+          .remove(filesToDelete);
+        
+        if (deleteError) {
+          console.warn('[AdminDashboard] Failed to delete some page images:', deleteError);
+          // Continue anyway - not critical
+        }
+      }
+
+      // Update the creation record
+      const { error: updateError } = await supabase
+        .from('creations')
+        .update({
+          is_featured: false,
+          featured_thumbnail_url: null,
+          featured_page_url: null,
+          featured_pages: null,
+        })
+        .eq('id', creation.id);
+
+      if (updateError) throw updateError;
+
+      console.log('[AdminDashboard] Creation unfeatured successfully');
+      
+      // Refresh creations list before clearing loading state
+      await fetchCreations();
+      
+      setFeatureMessage({ type: 'success', text: `"${creation.title}" has been removed from gallery` });
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setFeatureMessage(null), 3000);
+    } catch (err: any) {
+      console.error('[AdminDashboard] Failed to unfeature creation:', err);
+      setFeatureMessage({ type: 'error', text: err.message || 'Failed to unfeature creation' });
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setFeatureMessage(null), 5000);
+    } finally {
+      setFeatureLoading(null);
     }
   };
 
@@ -655,6 +889,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             🖨️ Print Preview
+          </button>
+          <button
+            onClick={() => setActiveTab('gallery')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              activeTab === 'gallery'
+                ? 'bg-pacific-cyan text-white shadow-lg'
+                : 'bg-white text-gunmetal hover:bg-slate-100'
+            }`}
+          >
+            ⭐ Gallery
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -1012,6 +1256,324 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Gallery Tab */}
+        {activeTab === 'gallery' && (
+          <div className="space-y-6">
+            {/* Success/Error Message */}
+            {featureMessage && (
+              <div
+                className={`rounded-xl p-4 border-2 ${
+                  featureMessage.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{featureMessage.type === 'success' ? '✅' : '❌'}</span>
+                  <span className="font-bold">{featureMessage.text}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+              {isLoading ? (
+                /* Loading State */
+                <div className="p-12 text-center">
+                  <div className="w-12 h-12 border-4 border-pacific-cyan/30 border-t-pacific-cyan rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-blue-slate font-medium">Loading creations...</p>
+                </div>
+              ) : error ? (
+                /* Error State */
+                <div className="p-12 text-center">
+                  <div className="text-4xl mb-4">⚠️</div>
+                  <p className="text-red-600 font-bold mb-2">Error loading creations</p>
+                  <p className="text-sm text-blue-slate">{error}</p>
+                </div>
+              ) : creations.length === 0 ? (
+                /* Empty State */
+                <div className="p-12 text-center">
+                  <div className="text-4xl mb-4">📚</div>
+                  <p className="text-blue-slate">No creations found</p>
+                </div>
+              ) : (
+                <>
+              {/* Header with Featured Count */}
+              <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-soft-gold/10 to-pacific-cyan/10">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h2 className="font-bold text-gunmetal flex items-center gap-2">
+                      <span className="text-2xl">⭐</span>
+                      Featured Gallery Management
+                    </h2>
+                    <p className="text-sm text-blue-slate mt-1">
+                      Select creations to feature on the homepage gallery
+                    </p>
+                    {creations.length > 0 && (
+                      <p className="text-xs text-silver mt-3">
+                        Showing {creations.filter(c => c.thumbnail_url).length} creations with valid thumbnails
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-black text-soft-gold">
+                      {creations.filter(c => c.is_featured).length}
+                    </div>
+                    <div className="text-xs text-blue-slate uppercase tracking-wider">
+                      Featured
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <input
+                  type="text"
+                  placeholder="Search by title or artist name..."
+                  value={gallerySearch}
+                  onChange={(e) => setGallerySearch(e.target.value)}
+                  className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:border-pacific-cyan focus:outline-none transition-colors font-medium text-gunmetal"
+                />
+              </div>
+
+              <div className="overflow-x-auto">
+                  {(() => {
+                    // Filter and sort creations
+                    let filteredCreations = creations.filter(creation => {
+                      // Always exclude creations without valid thumbnails
+                      if (!creation.thumbnail_url) return false;
+                      
+                      // Apply search filter if present
+                      if (gallerySearch) {
+                        const search = gallerySearch.toLowerCase();
+                        const titleMatch = creation.title?.toLowerCase().includes(search);
+                        const artistMatch = creation.artist_name?.toLowerCase().includes(search);
+                        return titleMatch || artistMatch;
+                      }
+                      return true;
+                    });
+
+                    // Sort creations
+                    filteredCreations.sort((a, b) => {
+                      let aVal, bVal;
+                      
+                      switch (gallerySortBy) {
+                        case 'title':
+                          aVal = a.title || '';
+                          bVal = b.title || '';
+                          break;
+                        case 'artist_name':
+                          aVal = a.artist_name || '';
+                          bVal = b.artist_name || '';
+                          break;
+                        case 'created_at':
+                        default:
+                          aVal = new Date(a.created_at).getTime();
+                          bVal = new Date(b.created_at).getTime();
+                      }
+                      
+                      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                      return gallerySortOrder === 'asc' ? comparison : -comparison;
+                    });
+                    
+                    if (filteredCreations.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <div className="text-4xl mb-4">📭</div>
+                          <p className="text-blue-slate">
+                            {gallerySearch 
+                              ? `No creations found matching "${gallerySearch}"`
+                              : 'No creations with valid thumbnails found'}
+                          </p>
+                        </div>
+                      );
+                    }
+                    
+                    const handleSort = (column: typeof gallerySortBy) => {
+                      if (gallerySortBy === column) {
+                        setGallerySortOrder(gallerySortOrder === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setGallerySortBy(column);
+                        setGallerySortOrder('asc');
+                      }
+                    };
+
+                    const SortIcon = ({ column }: { column: typeof gallerySortBy }) => {
+                      if (gallerySortBy !== column) return <span className="text-slate-300">↕</span>;
+                      return gallerySortOrder === 'asc' ? <span>↑</span> : <span>↓</span>;
+                    };
+                    
+                    return (
+                      <>
+                        {gallerySearch && (
+                          <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 text-sm text-blue-slate">
+                            Showing {filteredCreations.length} of {creations.filter(c => c.thumbnail_url).length} creations
+                          </div>
+                        )}
+                        {/* Table of Creations */}
+                        <table className="w-full">
+                          <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                              <th className="text-left px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider">
+                                Thumbnail
+                              </th>
+                              <th 
+                                onClick={() => handleSort('title')}
+                                className="text-left px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              >
+                                <div className="flex items-center gap-2">
+                                  Title <SortIcon column="title" />
+                                </div>
+                              </th>
+                              <th 
+                                onClick={() => handleSort('artist_name')}
+                                className="text-left px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              >
+                                <div className="flex items-center gap-2">
+                                  Artist <SortIcon column="artist_name" />
+                                </div>
+                              </th>
+                              <th className="text-left px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider">
+                                Age
+                              </th>
+                              <th 
+                                onClick={() => handleSort('created_at')}
+                                className="text-left px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider cursor-pointer hover:bg-slate-100"
+                              >
+                                <div className="flex items-center gap-2">
+                                  Created <SortIcon column="created_at" />
+                                </div>
+                              </th>
+                              <th className="text-center px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider">
+                                Featured
+                              </th>
+                              <th className="text-right px-6 py-3 text-xs font-bold text-blue-slate uppercase tracking-wider">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                          {filteredCreations.map((creation) => {
+                            const isFeatured = creation.is_featured;
+                            const isProcessing = featureLoading === creation.id;
+                            const thumbnailUrl = creation.thumbnail_url;
+
+                            return (
+                              <tr
+                                key={creation.id}
+                                className={`hover:bg-slate-50 transition-colors ${
+                                  isFeatured ? 'bg-soft-gold/5' : ''
+                                }`}
+                              >
+                                {/* Thumbnail */}
+                                <td className="px-6 py-4">
+                                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-pacific-cyan/10 to-soft-gold/10 flex-shrink-0">
+                                    {thumbnailUrl ? (
+                                      <img
+                                        src={thumbnailUrl}
+                                        alt={creation.title || 'Untitled'}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-slate-300 text-xl">
+                                        ⚠️
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Title */}
+                                <td className="px-6 py-4">
+                                  <div className="font-bold text-gunmetal">
+                                    {creation.title || 'Untitled Story'}
+                                  </div>
+                                </td>
+
+                                {/* Artist */}
+                                <td className="px-6 py-4 text-sm text-gunmetal">
+                                  {creation.artist_name || 'Unknown Artist'}
+                                </td>
+
+                                {/* Age */}
+                                <td className="px-6 py-4 text-sm text-gunmetal">
+                                  {creation.age || '—'}
+                                </td>
+
+                                {/* Created Date */}
+                                <td className="px-6 py-4 text-sm text-gunmetal">
+                                  {formatDate(creation.created_at)}
+                                </td>
+
+                                {/* Featured Status */}
+                                <td className="px-6 py-4 text-center">
+                                  {isFeatured ? (
+                                    <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-soft-gold/20 text-soft-gold text-xs font-bold">
+                                      <span>⭐</span>
+                                      Featured
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-slate-400">—</span>
+                                  )}
+                                </td>
+
+                                {/* Actions */}
+                                <td className="px-6 py-4 text-right">
+                                  <button
+                                    onClick={() => {
+                                      console.log('[AdminDashboard] Feature button clicked!', { 
+                                        creationId: creation.id, 
+                                        isFeatured, 
+                                        thumbnailUrl,
+                                        hasPageImages: !!creation.page_images,
+                                        pageImagesCount: creation.page_images?.length 
+                                      });
+                                      isFeatured
+                                        ? handleUnfeatureCreation(creation)
+                                        : handleFeatureCreation(creation);
+                                    }}
+                                    disabled={isProcessing || !thumbnailUrl}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                      isProcessing
+                                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                                        : !thumbnailUrl
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                        : isFeatured
+                                        ? 'bg-slate-600 text-white hover:bg-slate-700'
+                                        : 'bg-soft-gold text-white hover:bg-soft-gold/90'
+                                    }`}
+                                  >
+                                    {isProcessing ? (
+                                      <span className="flex items-center gap-2">
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Processing
+                                      </span>
+                                    ) : !thumbnailUrl ? (
+                                      'No Image'
+                                    ) : isFeatured ? (
+                                      'Unfeature'
+                                    ) : (
+                                      'Feature'
+                                    )}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          </tbody>
+                        </table>
+                      </>
+                    );
+                  })()}
+              </div>
+              </>
+              )}
+            </div>
           </div>
         )}
 

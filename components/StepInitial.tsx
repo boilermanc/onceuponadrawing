@@ -1,5 +1,6 @@
 
 import React from 'react';
+import FeaturedGallery from './FeaturedGallery';
 
 interface StepInitialProps {
   onStart: () => void;
@@ -192,26 +193,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
               <p className="text-blue-slate font-medium text-2xl mt-6 max-w-3xl mx-auto opacity-70 italic">Witness the alchemy. From crayon scribbles to cinematic frames, these are the stories that were never meant to be forgotten.</p>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-              {[
-                { img: "https://images.unsplash.com/photo-1614728263952-84ea206f99b6?auto=format&fit=crop&q=80&w=800", label: "The Cosmic Voyager", category: "Animation" },
-                { img: "https://images.unsplash.com/photo-1635324748177-3843e9900c14?auto=format&fit=crop&q=80&w=800", label: "Midnight Spirit", category: "Alchemy" },
-                { img: "https://images.unsplash.com/photo-1550684376-efcbd6e3f031?auto=format&fit=crop&q=80&w=800", label: "Sweetwater Castle", category: "Vision" },
-                { img: "https://images.unsplash.com/photo-1616628188502-413f2fe46e5e?auto=format&fit=crop&q=80&w=800", label: "Mechanized Saurian", category: "Render" },
-                { img: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&q=80&w=800", label: "Watercolor Abyss", category: "Vision" },
-                { img: "https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?auto=format&fit=crop&q=80&w=800", label: "The Glass Butterfly", category: "Alchemy" }
-              ].map((item, i) => (
-                <div key={i} className="relative group rounded-[3rem] overflow-hidden shadow-2xl border-[1px] border-silver/30 transition-all hover:-translate-y-4 duration-700 bg-white">
-                  <div className="aspect-[4/5] overflow-hidden">
-                    <img src={item.img} alt={item.label} className="w-full h-full object-cover transition-all duration-[2000ms] group-hover:scale-110" />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-10 flex flex-col justify-end">
-                     <p className="text-soft-gold text-[10px] font-black uppercase tracking-[0.4em] mb-2">{item.category}</p>
-                     <p className="text-white text-3xl font-black uppercase tracking-tighter">{item.label}</p>
-                  </div>
-                </div>
-              ))}
-           </div>
+           <FeaturedGallery onStartCreating={onStart} />
         </div>
       </section>
 
