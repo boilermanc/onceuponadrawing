@@ -82,8 +82,8 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
     >
       {/* Ambient background effects */}
       <div className="absolute inset-0 opacity-30 pointer-events-none overflow-hidden">
-        <div className="absolute top-[20%] left-[10%] w-96 h-96 bg-pacific-cyan/20 rounded-full blur-[120px] animate-pulse"></div>
-        <div className="absolute bottom-[20%] right-[10%] w-96 h-96 bg-soft-gold/20 rounded-full blur-[120px] animate-pulse delay-1000"></div>
+        <div className="absolute top-[20%] left-[10%] w-64 h-64 bg-pacific-cyan/20 rounded-full blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-[20%] right-[10%] w-64 h-64 bg-soft-gold/20 rounded-full blur-[100px] animate-pulse delay-1000"></div>
       </div>
 
       {/* Close Button */}
@@ -101,94 +101,80 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
 
       {/* Main Book Container */}
       <div
-        className="relative w-full max-w-xl mx-4 max-h-[90vh] flex flex-col"
+        className="relative w-full max-w-2xl mx-4 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Title and Attribution */}
         <div className="text-center mb-3 flex-shrink-0">
-          <h2 className="text-lg md:text-2xl font-black text-white tracking-tight mb-1">
+          <h2 className="text-lg md:text-xl font-black text-white tracking-tight mb-1">
             {creation.title}
           </h2>
           {artistAge && (
-            <p className="text-xs md:text-sm text-white/60 italic">
+            <p className="text-xs text-white/60 italic">
               Created by a young artist, age {artistAge}
             </p>
           )}
         </div>
 
-        {/* Book Page */}
-        <div className="relative bg-[#fffdf9] rounded-xl md:rounded-2xl shadow-2xl overflow-hidden book-shadow flex-1 min-h-0">
-          {/* Paper texture overlay */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
+        {/* Book Spread */}
+        <div className={`relative bg-white rounded-xl md:rounded-2xl shadow-2xl overflow-hidden book-shadow transition-transform duration-300 ${isTransitioning ? 'scale-[0.98]' : 'scale-100'}`}>
+          {/* Spine divider */}
+          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-200/60 z-30 hidden md:block"></div>
+          <div className="absolute left-1/2 top-0 bottom-0 w-6 -ml-3 spine-shadow z-20 hidden md:block"></div>
 
-          {/* Page Content */}
-          <div
-            className={`transition-opacity duration-300 h-full flex flex-col ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-          >
-            {!isLastPage ? (
-              <>
-                {/* Image Section - Story pages only */}
-                <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
-                  {currentPageData && (
-                    <img
-                      src={currentPageData.url}
-                      alt={`${creation.title} - Page ${currentPage + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  {/* Subtle vignette effect */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none"></div>
-                </div>
+          {/* Book Pages - Side by Side */}
+          <div className={`flex flex-col md:flex-row transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+            {/* LEFT PAGE: Illustration */}
+            <div className="w-full md:w-1/2 h-48 md:h-72 relative overflow-hidden bg-slate-100">
+              {currentPageData && (
+                <img
+                  src={currentPageData.url}
+                  alt={`${creation.title} - Page ${currentPage + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              )}
+              {/* Edge shadow */}
+              <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-black/10 to-transparent pointer-events-none hidden md:block"></div>
+            </div>
 
-                {/* Text Section - Story pages only */}
-                <div className="p-4 md:p-6 flex-1 overflow-y-auto">
-                  {/* Story Text */}
-                  <div className="max-w-lg mx-auto text-center">
-                    <div className="text-soft-gold/60 text-xl md:text-2xl font-serif mb-1">"</div>
-                    <p className="text-sm md:text-base lg:text-lg font-serif italic text-gunmetal leading-relaxed">
+            {/* RIGHT PAGE: Story Text or CTA */}
+            <div className="w-full md:w-1/2 h-auto md:h-72 relative overflow-hidden bg-[#fffdf9] p-5 md:p-6 flex flex-col justify-center items-center text-center">
+              {/* Paper texture */}
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
+              {/* Edge shadow */}
+              <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black/5 to-transparent pointer-events-none hidden md:block"></div>
+
+              <div className="z-10 w-full">
+                {!isLastPage ? (
+                  /* Story Pages */
+                  <div className="space-y-3">
+                    <div className="text-soft-gold/50 text-2xl font-serif">"</div>
+                    <p className="text-sm md:text-base font-serif italic text-gunmetal leading-relaxed px-2">
                       {currentPageData?.text}
                     </p>
-                    <div className="text-soft-gold/60 text-xl md:text-2xl font-serif mt-1 rotate-180">"</div>
-                  </div>
+                    <div className="text-soft-gold/50 text-2xl font-serif rotate-180">"</div>
 
-                  {/* Page Counter */}
-                  <div className="mt-4 text-center">
-                    <span className="inline-block px-3 py-1.5 bg-silver/20 text-blue-slate rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest">
-                      Page {currentPage + 1} of {totalPages}
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : (
-                /* CTA Page - Last Page - Side by side layout */
-                <div className="flex flex-col md:flex-row h-full">
-                  {/* Left side - Image */}
-                  <div className="md:w-1/2 flex-shrink-0">
-                    <div className="relative h-48 md:h-full overflow-hidden">
-                      {currentPageData && (
-                        <img
-                          src={currentPageData.url}
-                          alt={`${creation.title} - Page ${currentPage + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10 pointer-events-none hidden md:block"></div>
+                    {/* Page number */}
+                    <div className="pt-2">
+                      <span className="text-[10px] text-blue-slate/60 font-bold uppercase tracking-widest">
+                        Page {currentPage + 1}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Right side - CTA Content */}
-                  <div className="md:w-1/2 p-4 md:p-6 flex flex-col justify-center items-center text-center bg-[#fffdf9]">
-                    <h3 className="text-base md:text-lg font-black text-gunmetal mb-2">
+                ) : (
+                  /* CTA Page */
+                  <div className="space-y-3">
+                    <h3 className="text-base md:text-lg font-black text-gunmetal leading-tight">
                       Every drawing has a story waiting to be told
                     </h3>
 
-                    <p className="text-xs md:text-sm text-blue-slate mb-4 max-w-xs">
+                    <p className="text-xs text-blue-slate">
                       Turn any artwork into a 12-page illustrated storybook. It's free to start!
                     </p>
 
                     <button
                       onClick={handleStartCreating}
-                      className="px-5 py-2.5 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-xs md:text-sm hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pacific-cyan/30 group"
+                      className="mt-2 px-5 py-2.5 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pacific-cyan/30 group"
                     >
                       <span className="flex items-center gap-1.5">
                         Start With Your Drawing
@@ -198,45 +184,43 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
                       </span>
                     </button>
 
-                    {/* Page Counter */}
-                    <div className="mt-4">
-                      <span className="inline-block px-2.5 py-1 bg-silver/20 text-blue-slate rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-widest">
-                        Page {currentPage + 1} of {totalPages}
+                    <div className="pt-1">
+                      <span className="text-[10px] text-blue-slate/60 font-bold uppercase tracking-widest">
+                        Page {currentPage + 1}
                       </span>
                     </div>
                   </div>
-                </div>
-            )}
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Navigation Arrows */}
-        {/* Previous Button */}
         <button
           onClick={goToPrevPage}
           disabled={isFirstPage || isTransitioning}
-          className={`absolute left-0 md:-left-4 top-1/2 -translate-y-1/2 -translate-x-full md:-translate-x-1/2 w-10 h-10 md:w-11 md:h-11 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 z-[110] ${
+          className={`absolute left-0 md:-left-3 top-1/2 -translate-y-1/2 -translate-x-full md:-translate-x-1/2 w-9 h-9 md:w-10 md:h-10 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 z-[110] ${
             isFirstPage
               ? 'opacity-0 pointer-events-none'
               : 'opacity-100 hover:scale-110 active:scale-90'
           }`}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
-        {/* Next Button */}
         <button
           onClick={goToNextPage}
           disabled={isLastPage || isTransitioning}
-          className={`absolute right-0 md:-right-4 top-1/2 -translate-y-1/2 translate-x-full md:translate-x-1/2 w-10 h-10 md:w-11 md:h-11 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 z-[110] ${
+          className={`absolute right-0 md:-right-3 top-1/2 -translate-y-1/2 translate-x-full md:translate-x-1/2 w-9 h-9 md:w-10 md:h-10 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 z-[110] ${
             isLastPage
               ? 'opacity-0 pointer-events-none'
               : 'opacity-100 hover:scale-110 active:scale-90'
           }`}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -257,7 +241,7 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
               }}
               className={`h-1.5 rounded-full transition-all duration-300 ${
                 currentPage === idx
-                  ? 'w-6 bg-pacific-cyan shadow-[0_0_10px_rgba(98,146,158,0.7)]'
+                  ? 'w-5 bg-pacific-cyan shadow-[0_0_8px_rgba(98,146,158,0.6)]'
                   : 'w-1.5 bg-white/30 hover:bg-white/50'
               }`}
               aria-label={`Go to page ${idx + 1}`}
@@ -266,13 +250,20 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
         </div>
       </div>
 
-      {/* Custom styles for book shadow */}
+      {/* Custom styles */}
       <style>{`
         .book-shadow {
           box-shadow:
-            0 25px 50px -12px rgba(0, 0, 0, 0.5),
+            0 20px 40px -10px rgba(0, 0, 0, 0.4),
             0 0 0 1px rgba(255, 255, 255, 0.1),
             inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+        .spine-shadow {
+          background: linear-gradient(90deg,
+            rgba(0,0,0,0.03) 0%,
+            rgba(0,0,0,0.08) 50%,
+            rgba(0,0,0,0.03) 100%
+          );
         }
       `}</style>
     </div>
