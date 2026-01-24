@@ -95,20 +95,10 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
-      // Temporarily disabled to debug auth issue
-      // if ('serviceWorker' in navigator) {
-      //   window.addEventListener('load', () => {
-      //     navigator.serviceWorker.register('./sw.js')
-      //       .then(reg => console.log('SW Registered', reg))
-      //       .catch(err => console.log('SW Failed', err));
-      //   });
-      // }
-
-      // Unregister any existing service workers
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          registrations.forEach(reg => reg.unregister());
-          console.log('All service workers unregistered');
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .catch(err => console.log('SW registration failed:', err));
         });
       }
     </script>

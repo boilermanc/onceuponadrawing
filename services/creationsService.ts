@@ -144,31 +144,40 @@ async function getSignedUrl(
  * Includes thumbnail_url for the first page image
  */
 export async function getCreations(userId: string): Promise<Creation[]> {
-  const { data, error } = await supabase.rpc('get_accessible_creations', {
-    user_uuid: userId,
-  });
+  console.log('[getCreations] Calling RPC with userId:', userId);
+  
+  try {
+    const { data, error } = await supabase.rpc('get_accessible_creations', {
+      user_uuid: userId,
+    });
 
-  if (error) {
-    console.error('Failed to get creations:', error);
+    console.log('[getCreations] RPC response:', { data: data?.length, error });
+
+    if (error) {
+      console.error('[getCreations] Failed to get creations:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Generate thumbnail URLs for each creation
+    const creationsWithThumbnails = await Promise.all(
+      data.map(async (creation: Creation) => {
+        if (creation.page_images && creation.page_images.length > 0 && !creation.is_locked) {
+          const thumbnailUrl = await getSignedUrl('page-images', creation.page_images[0]);
+          return { ...creation, thumbnail_url: thumbnailUrl || undefined };
+        }
+        return creation;
+      })
+    );
+
+    return creationsWithThumbnails;
+  } catch (err) {
+    console.error('[getCreations] Unexpected error:', err);
     return [];
   }
-
-  if (!data || data.length === 0) {
-    return [];
-  }
-
-  // Generate thumbnail URLs for each creation
-  const creationsWithThumbnails = await Promise.all(
-    data.map(async (creation: Creation) => {
-      if (creation.page_images && creation.page_images.length > 0 && !creation.is_locked) {
-        const thumbnailUrl = await getSignedUrl('page-images', creation.page_images[0]);
-        return { ...creation, thumbnail_url: thumbnailUrl || undefined };
-      }
-      return creation;
-    })
-  );
-
-  return creationsWithThumbnails;
 }
 
 /**

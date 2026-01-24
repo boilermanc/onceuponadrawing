@@ -5,6 +5,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 // Decode JWT to get user info (Supabase has already validated it)
@@ -38,13 +39,34 @@ function getUser(authHeader: string) {
   return { user, error: null }
 }
 
+interface ShippingAddress {
+  name: string
+  street1: string
+  street2?: string
+  city: string
+  stateCode: string
+  postalCode: string
+  countryCode: string
+  phoneNumber?: string
+  email?: string
+}
+
 interface CreateBookCheckoutRequest {
-  priceId: string
-  productType: 'ebook' | 'hardcover'
-  userId: string
+  // Order details
   creationId: string
-  dedicationText?: string
+  userId: string
   userEmail: string
+  productType: 'ebook' | 'hardcover'
+  dedicationText?: string
+  
+  // Shipping details (required for hardcover)
+  shippingAddress?: ShippingAddress
+  shippingLevelId?: string // Lulu shipping level code (e.g., "MAIL", "PRIORITY_MAIL")
+  shippingCost?: number // Shipping cost in cents
+  
+  // Pricing (will be calculated if not provided)
+  priceId?: string // Optional - we can create dynamic price
+  bookCost?: number // Book production cost in cents
 }
 
 interface StripePrice {
@@ -92,6 +114,7 @@ async function createStripeCheckoutSession(params: {
     'success_url': params.successUrl,
     'cancel_url': params.cancelUrl,
     'customer_email': params.customerEmail,
+    'locale': 'en',
   })
 
   // Add metadata
@@ -125,7 +148,35 @@ async function createBookOrder(params: {
   dedicationText?: string
   amountPaid: number
   stripeSessionId: string
+  shippingAddress?: ShippingAddress
+  shippingLevelId?: string
+  contactEmail?: string
 }): Promise<{ id: string }> {
+  const orderData: any = {
+    user_id: params.userId,
+    creation_id: params.creationId,
+    order_type: params.orderType,
+    status: 'pending',
+    dedication_text: params.dedicationText || null,
+    amount_paid: params.amountPaid,
+    stripe_session_id: params.stripeSessionId,
+    contact_email: params.contactEmail || null,
+  }
+
+  // Add shipping information for hardcover orders
+  if (params.orderType === 'hardcover' && params.shippingAddress) {
+    orderData.shipping_name = params.shippingAddress.name
+    orderData.shipping_address = params.shippingAddress.street1
+    orderData.shipping_address2 = params.shippingAddress.street2 || null
+    orderData.shipping_city = params.shippingAddress.city
+    orderData.shipping_state = params.shippingAddress.stateCode
+    orderData.shipping_zip = params.shippingAddress.postalCode
+    orderData.shipping_country = params.shippingAddress.countryCode || 'US'
+    orderData.shipping_phone = params.shippingAddress.phoneNumber || null
+    orderData.shipping_email = params.shippingAddress.email || null
+    orderData.shipping_level_id = params.shippingLevelId || null
+  }
+
   const response = await fetch(
     `${SUPABASE_URL}/rest/v1/book_orders`,
     {
@@ -136,15 +187,7 @@ async function createBookOrder(params: {
         'Content-Type': 'application/json',
         'Prefer': 'return=representation',
       },
-      body: JSON.stringify({
-        user_id: params.userId,
-        creation_id: params.creationId,
-        order_type: params.orderType,
-        status: 'pending',
-        dedication_text: params.dedicationText || null,
-        amount_paid: params.amountPaid,
-        stripe_session_id: params.stripeSessionId,
-      }),
+      body: JSON.stringify(orderData),
     }
   )
 
@@ -194,15 +237,16 @@ Deno.serve(async (req) => {
 
     const body: CreateBookCheckoutRequest = await req.json()
     console.log('[create-book-checkout] Request body:', {
-      priceId: body.priceId,
       productType: body.productType,
       userId: body.userId,
       creationId: body.creationId,
       userEmail: body.userEmail,
+      hasShipping: !!body.shippingAddress,
+      shippingLevelId: body.shippingLevelId,
     })
 
     // Validate required fields
-    if (!body.priceId || !body.productType || !body.userId || !body.creationId || !body.userEmail) {
+    if (!body.productType || !body.userId || !body.creationId || !body.userEmail) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -226,26 +270,121 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Get the price amount from Stripe
-    console.log('[create-book-checkout] Fetching price from Stripe...')
-    const price = await getStripePrice(body.priceId)
-    console.log('[create-book-checkout] Price:', price.unit_amount, price.currency)
+    // For hardcover, validate shipping information
+    if (body.productType === 'hardcover') {
+      if (!body.shippingAddress || !body.shippingLevelId || body.shippingCost === undefined || body.bookCost === undefined) {
+        return new Response(JSON.stringify({ 
+          error: 'Hardcover orders require shipping address, shipping level, shipping cost, and book cost' 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
 
-    // Create Stripe Checkout Session
+    // Calculate total amount
+    let totalAmount: number
+    let description: string
+    
+    if (body.productType === 'ebook') {
+      totalAmount = 1299 // $12.99 for ebook
+      description = 'Once Upon a Drawing - eBook'
+    } else {
+      // Hardcover: book cost + shipping cost
+      totalAmount = (body.bookCost || 0) + (body.shippingCost || 0)
+      description = `Once Upon a Drawing - Hardcover Book`
+    }
+
+    console.log('[create-book-checkout] Total amount:', totalAmount, 'cents')
+
+    // If priceId provided, use it; otherwise create inline price
+    let sessionParams: any = {
+      mode: 'payment',
+      success_url: 'https://onceuponadrawing.com/order-success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://onceuponadrawing.com/order-cancelled',
+      customer_email: body.userEmail,
+    }
+
+    if (body.priceId) {
+      // Use existing price
+      sessionParams.line_items = [{
+        price: body.priceId,
+        quantity: 1,
+      }]
+    } else {
+      // Create dynamic price inline
+      sessionParams.line_items = [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: description,
+            description: body.productType === 'hardcover' 
+              ? `Includes book printing and ${body.shippingLevelId} shipping`
+              : 'Digital PDF book',
+          },
+          unit_amount: totalAmount,
+        },
+        quantity: 1,
+      }]
+    }
+
+    // Add metadata
+    sessionParams.metadata = {
+      user_id: body.userId,
+      creation_id: body.creationId,
+      product_type: body.productType,
+      dedication_text: body.dedicationText || '',
+      order_source: 'book_checkout',
+    }
+
+    if (body.productType === 'hardcover') {
+      sessionParams.metadata.shipping_level_id = body.shippingLevelId
+      sessionParams.metadata.book_cost = body.bookCost?.toString() || '0'
+      sessionParams.metadata.shipping_cost = body.shippingCost?.toString() || '0'
+    }
+
+    // Create Stripe Checkout Session using fetch directly for inline prices
     console.log('[create-book-checkout] Creating Stripe checkout session...')
-    const session = await createStripeCheckoutSession({
-      priceId: body.priceId,
-      successUrl: 'https://onceuponadrawing.com/order-success?session_id={CHECKOUT_SESSION_ID}',
-      cancelUrl: 'https://onceuponadrawing.com/order-cancelled',
-      customerEmail: body.userEmail,
-      metadata: {
-        user_id: body.userId,
-        creation_id: body.creationId,
-        product_type: body.productType,
-        dedication_text: body.dedicationText || '',
-        order_source: 'book_checkout',
+    const formBody = new URLSearchParams()
+    formBody.append('mode', sessionParams.mode)
+    formBody.append('success_url', sessionParams.success_url)
+    formBody.append('cancel_url', sessionParams.cancel_url)
+    formBody.append('customer_email', sessionParams.customer_email)
+    formBody.append('payment_method_types[0]', 'card')
+
+    // Add line items
+    if (body.priceId) {
+      formBody.append('line_items[0][price]', body.priceId)
+      formBody.append('line_items[0][quantity]', '1')
+    } else {
+      formBody.append('line_items[0][price_data][currency]', 'usd')
+      formBody.append('line_items[0][price_data][product_data][name]', description)
+      formBody.append('line_items[0][price_data][product_data][description]', sessionParams.line_items[0].price_data.product_data.description)
+      formBody.append('line_items[0][price_data][unit_amount]', totalAmount.toString())
+      formBody.append('line_items[0][quantity]', '1')
+    }
+
+    // Add metadata
+    for (const [key, value] of Object.entries(sessionParams.metadata)) {
+      formBody.append(`metadata[${key}]`, value as string)
+    }
+
+    const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
+      body: formBody,
     })
+
+    if (!stripeResponse.ok) {
+      const errorText = await stripeResponse.text()
+      console.error('[create-book-checkout] Stripe API error:', stripeResponse.status, errorText)
+      throw new Error(`Stripe API error (${stripeResponse.status}): ${errorText}`)
+    }
+
+    const session = await stripeResponse.json()
     console.log('[create-book-checkout] Checkout session created:', session.id)
 
     // Create pending book order in database
@@ -255,8 +394,11 @@ Deno.serve(async (req) => {
       creationId: body.creationId,
       orderType: body.productType,
       dedicationText: body.dedicationText,
-      amountPaid: price.unit_amount,
+      amountPaid: totalAmount,
       stripeSessionId: session.id,
+      shippingAddress: body.shippingAddress,
+      shippingLevelId: body.shippingLevelId,
+      contactEmail: body.userEmail,
     })
     console.log('[create-book-checkout] Book order created:', bookOrder.id)
 

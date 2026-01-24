@@ -74,6 +74,7 @@ async function createStripeCheckoutSession(params: {
       'cancel_url': params.cancelUrl,
       'client_reference_id': params.clientReferenceId,
       'customer_email': params.customerEmail,
+      'locale': 'en',
       'metadata[user_id]': params.metadata.user_id,
       'metadata[pack_name]': params.metadata.pack_name,
       'metadata[credits]': params.metadata.credits,

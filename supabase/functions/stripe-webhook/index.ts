@@ -52,6 +52,74 @@ async function verifyStripeSignature(
   return computedSignature === expectedSignature
 }
 
+// Handle book order after successful payment
+async function handleBookOrder(session: any): Promise<Response> {
+  try {
+    const stripeSessionId = session.id
+    console.log('[stripe-webhook] Handling book order for session:', stripeSessionId)
+
+    // Update book order status to payment_received
+    const updateResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/book_orders?stripe_session_id=eq.${stripeSessionId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify({
+          status: 'payment_received',
+          stripe_payment_intent_id: session.payment_intent,
+        }),
+      }
+    )
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text()
+      console.error('[stripe-webhook] Failed to update book order:', errorText)
+      return new Response('Failed to update book order', { status: 500 })
+    }
+
+    const updatedOrders = await updateResponse.json()
+    if (!updatedOrders || updatedOrders.length === 0) {
+      console.error('[stripe-webhook] No book order found for session:', stripeSessionId)
+      return new Response('Book order not found', { status: 404 })
+    }
+
+    const bookOrder = updatedOrders[0]
+    console.log('[stripe-webhook] Book order updated:', bookOrder.id)
+
+    // Trigger PDF generation and Lulu order submission
+    // This is done asynchronously to avoid webhook timeout
+    console.log('[stripe-webhook] Triggering book processing...')
+    
+    // Call process-book-order function (fire and forget)
+    fetch(`${SUPABASE_URL}/functions/v1/process-book-order`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bookOrderId: bookOrder.id,
+      }),
+    }).catch(err => {
+      console.error('[stripe-webhook] Failed to trigger book processing:', err)
+    })
+
+    console.log('[stripe-webhook] Book order webhook processed successfully')
+    return new Response(JSON.stringify({ received: true, bookOrderId: bookOrder.id }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    console.error('[stripe-webhook] Error handling book order:', error)
+    return new Response(`Book order error: ${String(error)}`, { status: 500 })
+  }
+}
+
 Deno.serve(async (req) => {
   console.log('[stripe-webhook] Request received')
 
@@ -78,11 +146,21 @@ Deno.serve(async (req) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object
 
+      // Check if this is a book order or credit purchase
+      const orderSource = session.metadata?.order_source
+
+      if (orderSource === 'book_checkout') {
+        // Handle book order
+        console.log('[stripe-webhook] Processing book order')
+        return await handleBookOrder(session)
+      }
+
+      // Handle credit purchase (existing logic)
       const userId = session.client_reference_id || session.metadata?.user_id
       const packName = session.metadata?.pack_name
       const credits = parseInt(session.metadata?.credits || '0', 10)
 
-      console.log('[stripe-webhook] Processing:', { userId, packName, credits })
+      console.log('[stripe-webhook] Processing credit purchase:', { userId, packName, credits })
 
       if (!userId || !packName || !credits) {
         console.error('[stripe-webhook] Missing metadata:', { userId, packName, credits })

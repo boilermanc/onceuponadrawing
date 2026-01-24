@@ -1,0 +1,396 @@
+/**
+ * PDF Generator using Puppeteer
+ * Generates print-ready interior and cover PDFs with proper bleed and DPI
+ */
+
+import puppeteer from 'https://deno.land/x/puppeteer@16.2.0/mod.ts';
+import { 
+  getInteriorPdfSpecs, 
+  getCoverPdfSpecs, 
+  getPuppeteerPageSettings,
+  getPuppeteerViewport,
+  PRINT_DPI
+} from './pdf-specs.ts';
+
+export interface StoryPage {
+  pageNumber: number;
+  text: string;
+  imageUrl: string;
+}
+
+export interface BookContent {
+  title: string;
+  artistName: string;
+  age?: string;
+  year?: string;
+  dedication?: string;
+  originalImageUrl: string;
+  heroImageUrl: string;
+  pages: StoryPage[];
+}
+
+/**
+ * Generate interior PDF with all story pages
+ * - Includes bleed (8.75" x 8.75")
+ * - 300 DPI
+ * - RGB color mode (Lulu converts to CMYK)
+ */
+export async function generateInteriorPdf(
+  content: BookContent
+): Promise<Uint8Array> {
+  console.log('[PDF Generator] Generating interior PDF...');
+  
+  const specs = getInteriorPdfSpecs();
+  console.log('[PDF Generator] Interior specs:', specs);
+  
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set viewport for proper rendering
+    await page.setViewport(getPuppeteerViewport(specs));
+    
+    // Generate HTML for all interior pages
+    const html = generateInteriorHtml(content, specs);
+    
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF with exact specifications
+    const pdf = await page.pdf({
+      ...getPuppeteerPageSettings(specs),
+      format: undefined, // Don't use predefined format
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+    
+    console.log('[PDF Generator] Interior PDF generated successfully');
+    return pdf;
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * Generate cover PDF
+ * - Width: (Back 8.5") + (Spine) + (Front 8.5") + (0.25" bleed)
+ * - Height: 8.75" (8.5" + 0.25" bleed)
+ * - 300 DPI
+ */
+export async function generateCoverPdf(
+  content: BookContent,
+  pageCount: number
+): Promise<Uint8Array> {
+  console.log('[PDF Generator] Generating cover PDF...');
+  
+  const specs = getCoverPdfSpecs(pageCount);
+  console.log('[PDF Generator] Cover specs:', specs);
+  
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  
+  try {
+    const page = await browser.newPage();
+    
+    // Set viewport for proper rendering
+    await page.setViewport(getPuppeteerViewport(specs));
+    
+    // Generate HTML for cover
+    const html = generateCoverHtml(content, specs);
+    
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    
+    // Generate PDF with exact specifications
+    const pdf = await page.pdf({
+      ...getPuppeteerPageSettings(specs),
+      format: undefined,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      landscape: true, // Cover is wider than tall
+    });
+    
+    console.log('[PDF Generator] Cover PDF generated successfully');
+    return pdf;
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * Generate HTML for interior pages
+ * Each page should be full-bleed (8.75" x 8.75")
+ */
+function generateInteriorHtml(content: BookContent, specs: any): string {
+  const pages: string[] = [];
+  
+  // Page 1: Title page
+  pages.push(`
+    <div class="page" style="background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);">
+      <div class="content-safe">
+        <h1 style="font-size: 72pt; text-align: center; margin-top: 200px; font-family: 'Georgia', serif;">
+          ${escapeHtml(content.title)}
+        </h1>
+        <p style="font-size: 24pt; text-align: center; margin-top: 40px; font-style: italic;">
+          A story by ${escapeHtml(content.artistName)}
+        </p>
+      </div>
+    </div>
+  `);
+  
+  // Page 2: Dedication (if provided)
+  if (content.dedication) {
+    pages.push(`
+      <div class="page">
+        <div class="content-safe">
+          <p style="font-size: 20pt; text-align: center; margin-top: 300px; font-style: italic; font-family: 'Georgia', serif;">
+            ${escapeHtml(content.dedication)}
+          </p>
+        </div>
+      </div>
+    `);
+  }
+  
+  // Story pages (alternating image/text)
+  content.pages.forEach((storyPage, idx) => {
+    // Image page
+    pages.push(`
+      <div class="page" style="background-image: url('${storyPage.imageUrl}'); background-size: cover; background-position: center;">
+      </div>
+    `);
+    
+    // Text page
+    pages.push(`
+      <div class="page" style="background: #fffdf9;">
+        <div class="content-safe">
+          <p style="font-size: 28pt; text-align: center; margin-top: 250px; line-height: 1.6; font-family: 'Georgia', serif; font-style: italic;">
+            ${escapeHtml(storyPage.text)}
+          </p>
+        </div>
+      </div>
+    `);
+  });
+  
+  // "The End" page
+  pages.push(`
+    <div class="page" style="background: linear-gradient(135deg, #f0f0f0 0%, #ffffff 100%);">
+      <div class="content-safe">
+        <h2 style="font-size: 96pt; text-align: center; margin-top: 300px; font-family: 'Georgia', serif; font-style: italic; color: #999;">
+          The End
+        </h2>
+      </div>
+    </div>
+  `);
+  
+  // About the Artist page
+  pages.push(`
+    <div class="page">
+      <div class="content-safe">
+        <h3 style="font-size: 36pt; text-align: center; margin-top: 200px; margin-bottom: 40px;">
+          About the Artist
+        </h3>
+        <p style="font-size: 24pt; text-align: center;">
+          ${escapeHtml(content.artistName)}
+        </p>
+        ${content.age ? `<p style="font-size: 18pt; text-align: center; margin-top: 20px;">Age ${escapeHtml(content.age)}</p>` : ''}
+        ${content.year ? `<p style="font-size: 18pt; text-align: center;">Year ${escapeHtml(content.year)}</p>` : ''}
+      </div>
+    </div>
+  `);
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        
+        .page {
+          width: ${specs.widthInches}in;
+          height: ${specs.heightInches}in;
+          position: relative;
+          page-break-after: always;
+          background: white;
+          overflow: hidden;
+        }
+        
+        .page:last-child {
+          page-break-after: avoid;
+        }
+        
+        /* Safe area (inside bleed) */
+        .content-safe {
+          position: absolute;
+          top: 0.125in;
+          left: 0.125in;
+          right: 0.125in;
+          bottom: 0.125in;
+          padding: 0.5in;
+        }
+        
+        @page {
+          size: ${specs.widthInches}in ${specs.heightInches}in;
+          margin: 0;
+        }
+      </style>
+    </head>
+    <body>
+      ${pages.join('\n')}
+    </body>
+    </html>
+  `;
+}
+
+/**
+ * Generate HTML for cover
+ * Layout: [Bleed][Back Cover][Spine][Front Cover][Bleed]
+ */
+function generateCoverHtml(content: BookContent, specs: any): string {
+  const backCoverX = 0.125; // Start after left bleed
+  const spineX = backCoverX + specs.backCoverWidthInches;
+  const frontCoverX = spineX + specs.spineWidthInches;
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          margin: 0;
+          padding: 0;
+          width: ${specs.widthInches}in;
+          height: ${specs.heightInches}in;
+          position: relative;
+          background: white;
+        }
+        
+        .cover-section {
+          position: absolute;
+          top: 0;
+          height: 100%;
+        }
+        
+        /* Back Cover */
+        .back-cover {
+          left: 0;
+          width: ${backCoverX + specs.backCoverWidthInches}in;
+          background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%);
+        }
+        
+        /* Spine */
+        .spine {
+          left: ${spineX}in;
+          width: ${specs.spineWidthInches}in;
+          background: #333;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .spine-text {
+          color: white;
+          font-size: 14pt;
+          font-family: 'Arial', sans-serif;
+          font-weight: bold;
+          writing-mode: vertical-lr;
+          transform: rotate(180deg);
+          white-space: nowrap;
+        }
+        
+        /* Front Cover */
+        .front-cover {
+          left: ${frontCoverX}in;
+          width: ${specs.frontCoverWidthInches + 0.125}in; /* Include right bleed */
+          background-image: url('${content.originalImageUrl}');
+          background-size: cover;
+          background-position: center;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          padding: 0.5in;
+        }
+        
+        .title-overlay {
+          background: rgba(255, 255, 255, 0.95);
+          padding: 30px;
+          border-radius: 10px;
+          text-align: center;
+        }
+        
+        .title {
+          font-size: 48pt;
+          font-family: 'Georgia', serif;
+          font-weight: bold;
+          margin-bottom: 10px;
+          color: #333;
+        }
+        
+        .author {
+          font-size: 24pt;
+          font-family: 'Georgia', serif;
+          font-style: italic;
+          color: #666;
+        }
+        
+        @page {
+          size: ${specs.widthInches}in ${specs.heightInches}in;
+          margin: 0;
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Back Cover -->
+      <div class="cover-section back-cover">
+        <div style="padding: 1in; text-align: center;">
+          <p style="font-size: 18pt; margin-top: 2in;">
+            Once Upon a Drawing
+          </p>
+        </div>
+      </div>
+      
+      <!-- Spine -->
+      <div class="cover-section spine">
+        <div class="spine-text">
+          ${escapeHtml(content.title)} · ${escapeHtml(content.artistName)}
+        </div>
+      </div>
+      
+      <!-- Front Cover -->
+      <div class="cover-section front-cover">
+        <div class="title-overlay">
+          <div class="title">${escapeHtml(content.title)}</div>
+          <div class="author">by ${escapeHtml(content.artistName)}</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}

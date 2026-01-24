@@ -1,0 +1,2 @@
+[functions.test-pdf-specs]
+verify_jwt = false

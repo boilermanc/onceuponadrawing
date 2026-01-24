@@ -2,7 +2,8 @@ const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
 
 const BOOK_PRICE_IDS = {
   ebook: 'price_1SsRkzGzopxGCjLeKjAifMlZ',
-  // hardcover: 'price_xxx' // Add later
+  softcover: 'price_SOFTCOVER_ID', // TODO: Replace with actual Stripe price ID
+  hardcover: 'price_HARDCOVER_ID', // TODO: Replace with actual Stripe price ID
 }
 
 const corsHeaders = {
@@ -64,30 +65,75 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Fetch ebook price from Stripe
-    const ebookPrice = await getStripePrice(BOOK_PRICE_IDS.ebook)
+    // Fetch all prices from Stripe in parallel
+    const [ebookPrice, softcoverPrice, hardcoverPrice] = await Promise.all([
+      getStripePrice(BOOK_PRICE_IDS.ebook).catch(err => {
+        console.error('[get-book-prices] Failed to fetch ebook price:', err);
+        return null;
+      }),
+      getStripePrice(BOOK_PRICE_IDS.softcover).catch(err => {
+        console.error('[get-book-prices] Failed to fetch softcover price:', err);
+        return null;
+      }),
+      getStripePrice(BOOK_PRICE_IDS.hardcover).catch(err => {
+        console.error('[get-book-prices] Failed to fetch hardcover price:', err);
+        return null;
+      }),
+    ]);
 
-    const productName = typeof ebookPrice.product === 'object'
-      ? ebookPrice.product.name
-      : 'Digital Storybook'
+    const response: any = {};
 
-    const response = {
-      ebook: {
+    // Add ebook if available
+    if (ebookPrice) {
+      const productName = typeof ebookPrice.product === 'object'
+        ? ebookPrice.product.name
+        : 'Digital Storybook';
+
+      response.ebook = {
         priceId: ebookPrice.id,
         amount: ebookPrice.unit_amount,
         currency: ebookPrice.currency,
         displayPrice: formatPrice(ebookPrice.unit_amount, ebookPrice.currency),
         productName: productName,
-      },
-      hardcover: null, // We'll add this later
+      };
     }
 
-    console.log('[get-book-prices] Returning prices:', response)
+    // Add softcover if available
+    if (softcoverPrice) {
+      const productName = typeof softcoverPrice.product === 'object'
+        ? softcoverPrice.product.name
+        : 'Softcover Book';
+
+      response.softcover = {
+        priceId: softcoverPrice.id,
+        amount: softcoverPrice.unit_amount,
+        currency: softcoverPrice.currency,
+        displayPrice: formatPrice(softcoverPrice.unit_amount, softcoverPrice.currency),
+        productName: productName,
+      };
+    }
+
+    // Add hardcover if available
+    if (hardcoverPrice) {
+      const productName = typeof hardcoverPrice.product === 'object'
+        ? hardcoverPrice.product.name
+        : 'Hardcover Book';
+
+      response.hardcover = {
+        priceId: hardcoverPrice.id,
+        amount: hardcoverPrice.unit_amount,
+        currency: hardcoverPrice.currency,
+        displayPrice: formatPrice(hardcoverPrice.unit_amount, hardcoverPrice.currency),
+        productName: productName,
+      };
+    }
+
+    console.log('[get-book-prices] Returning prices:', response);
 
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    });
   } catch (error) {
     console.error('[get-book-prices] Error:', error)
     return new Response(JSON.stringify({

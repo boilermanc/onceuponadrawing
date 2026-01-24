@@ -6,6 +6,7 @@ import {
   Creation,
   CreationWithSignedUrls,
 } from '../services/creationsService';
+import { supabase } from '../services/supabaseClient';
 import BookPurchaseModal from './BookPurchaseModal';
 
 interface MyCreationsProps {
@@ -26,6 +27,22 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loadingCreationId, setLoadingCreationId] = useState<string | null>(null);
   const [bookPurchaseCreation, setBookPurchaseCreation] = useState<Creation | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
+
+  // Fetch user email on mount
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          setUserEmail(user.email);
+        }
+      } catch (err) {
+        console.error('[MyCreations] Error fetching user email:', err);
+      }
+    };
+    fetchUserEmail();
+  }, []);
 
   // Fetch creations on mount
   useEffect(() => {
@@ -355,6 +372,8 @@ Order Book
           artistName: bookPurchaseCreation.artist_name || 'Young Artist',
           thumbnailUrl: bookPurchaseCreation.thumbnail_url,
         } : null}
+        userId={userId}
+        userEmail={userEmail}
       />
     </div>
   );

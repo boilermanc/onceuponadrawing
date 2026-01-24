@@ -1,0 +1,2 @@
+[functions.generate-book-preview]
+verify_jwt = false

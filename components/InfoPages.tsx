@@ -257,16 +257,37 @@ const InfoPages: React.FC<InfoPagesProps> = ({ type, onClose }) => {
 
                     <section className="space-y-4">
                       <h3 className="text-2xl font-black text-gunmetal uppercase tracking-tight flex items-center gap-3">
-                        <span className="text-pacific-cyan">03.</span> Nature of AI Generation
+                        <span className="text-pacific-cyan">03.</span> Acceptable Use & Content Guidelines
                       </h3>
-                      <p className="text-blue-slate font-medium leading-relaxed italic">
-                        Generative AI is a collaboration, not a Xerox machine. The Studio utilizes advanced algorithms to interpret your child's drawings. You acknowledge that AI outputs (Story text and 3D renders) are creative interpretations and may not perfectly mirror the original intent or visual fidelity of the source sketch. 
+                      <p className="text-blue-slate font-medium leading-relaxed">
+                        Once Upon a Drawing is designed to transform children's artwork into magical stories. To maintain a safe and family-friendly environment, you agree NOT to upload, submit, or share any content that:
+                      </p>
+                      <ul className="list-disc pl-5 text-sm font-bold text-blue-slate space-y-2">
+                        <li>Depicts violence, gore, weapons, or harmful activities</li>
+                        <li>Contains nudity, sexually explicit material, or adult content</li>
+                        <li>Promotes hate speech, discrimination, or harassment</li>
+                        <li>Depicts illegal activities or substances</li>
+                        <li>Contains personal information of others without consent</li>
+                        <li>Infringes on copyrights, trademarks, or intellectual property rights of others</li>
+                        <li>Is intended to deceive, defraud, or mislead</li>
+                      </ul>
+                      <p className="text-blue-slate font-medium leading-relaxed mt-4">
+                        We reserve the right to remove any content that violates these guidelines and to suspend or terminate accounts of users who repeatedly violate these terms. Violations may be reported to appropriate authorities where required by law.
                       </p>
                     </section>
 
                     <section className="space-y-4">
                       <h3 className="text-2xl font-black text-gunmetal uppercase tracking-tight flex items-center gap-3">
-                        <span className="text-pacific-cyan">04.</span> Physical Goods & Shipping
+                        <span className="text-pacific-cyan">04.</span> Nature of AI Generation
+                      </h3>
+                      <p className="text-blue-slate font-medium leading-relaxed italic">
+                        Generative AI is a collaboration, not a Xerox machine. The Studio utilizes advanced algorithms to interpret your child's drawings. You acknowledge that AI outputs (Story text and 3D renders) are creative interpretations and may not perfectly mirror the original intent or visual fidelity of the source sketch.
+                      </p>
+                    </section>
+
+                    <section className="space-y-4">
+                      <h3 className="text-2xl font-black text-gunmetal uppercase tracking-tight flex items-center gap-3">
+                        <span className="text-pacific-cyan">05.</span> Physical Goods & Shipping
                       </h3>
                       <p className="text-blue-slate font-medium leading-relaxed">
                         Archival Hardcovers are custom-manufactured upon order. "Once Upon a Drawing Logistics" handles the coordination of printing and distribution. Due to the highly personalized nature of archival books, all sales are final. Replacements are only issued for manufacturing defects or damage during transit.
@@ -275,7 +296,7 @@ const InfoPages: React.FC<InfoPagesProps> = ({ type, onClose }) => {
 
                     <section className="space-y-4">
                       <h3 className="text-2xl font-black text-gunmetal uppercase tracking-tight flex items-center gap-3">
-                        <span className="text-pacific-cyan">05.</span> Limitation of Liability
+                        <span className="text-pacific-cyan">06.</span> Limitation of Liability
                       </h3>
                       <p className="text-blue-slate font-medium leading-relaxed">
                         The Studio provides magic on an "as-is" basis. We are not liable for emotional distress caused by a dragon having two heads instead of one, or for lost packages once they have entered the logistics stream.

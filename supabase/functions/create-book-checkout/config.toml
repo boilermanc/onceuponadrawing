@@ -1,0 +1,2 @@
+[functions.create-book-checkout]
+verify_jwt = false

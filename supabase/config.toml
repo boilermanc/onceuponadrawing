@@ -1,0 +1,29 @@
+[api]
+enabled = true
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.get-book-prices]
+verify_jwt = false
+
+[functions.create-book-checkout]
+verify_jwt = false
+
+[functions.test-lulu]
+verify_jwt = false
+
+[functions.generate-book-preview]
+verify_jwt = false
+
+[functions.get-lulu-shipping]
+verify_jwt = false
+
+[functions.test-pdf-specs]
+verify_jwt = false
+
+[functions.process-book-order]
+verify_jwt = false

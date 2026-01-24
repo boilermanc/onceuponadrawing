@@ -5,6 +5,7 @@ import Button from './ui/Button';
 import { supabase } from '../services/supabaseClient';
 import { getProfile } from '../services/supabaseService';
 import { useToast } from './ui/Toast';
+import InfoPages, { InfoPageType } from './InfoPages';
 
 interface AuthScreenProps {
   onAuthenticated: (user: User, isNewUser: boolean) => void;
@@ -17,13 +18,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
   const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showInfoPage, setShowInfoPage] = useState<InfoPageType | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    subscribe: true
+    subscribe: true,
+    acceptedTerms: false
   });
 
   useEffect(() => {
@@ -38,26 +41,31 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
       return;
     }
 
+    if (!isLogin && !formData.acceptedTerms) {
+      showToast('error', 'Terms Required', 'Please accept the Terms of Service and Privacy Policy to create an account.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       if (isLogin) {
-        // Supabase SignIn
-        console.log('[Auth] Attempting login for:', formData.email);
+        // Clear any stale session before login
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session) {
+          await supabase.auth.signOut();
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
-        console.log('[Auth] Login result:', { user: data?.user?.id, error: error?.message });
 
         if (error) throw error;
 
-        console.log('[Auth] Fetching profile for user:', data.user.id);
         const profile = await getProfile(data.user.id);
-        console.log('[Auth] Profile result:', profile);
 
         if (profile) {
-          console.log('[Auth] Calling onAuthenticated with profile');
           onAuthenticated({
             id: profile.id,
             firstName: profile.first_name,
@@ -82,6 +90,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
         }
       } else {
         // Supabase SignUp
+        const termsAcceptedAt = new Date().toISOString();
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -89,6 +98,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
             data: {
               first_name: formData.firstName,
               last_name: formData.lastName,
+              terms_accepted_at: termsAcceptedAt,
+              terms_version: '2.1'
             }
           }
         });
@@ -234,8 +245,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
           {!isLogin && (
             <label className="flex items-center gap-4 p-4 bg-off-white rounded-2xl border-2 border-dashed border-silver cursor-pointer group hover:bg-pacific-cyan/5 transition-colors">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={formData.subscribe}
                 onChange={e => setFormData({...formData, subscribe: e.target.checked})}
                 className="w-6 h-6 rounded-lg border-2 border-silver text-pacific-cyan focus:ring-pacific-cyan accent-pacific-cyan"
@@ -243,6 +254,39 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
               <div className="flex-1 text-left">
                 <p className="text-xs font-black text-gunmetal uppercase tracking-tight">Join the Studio</p>
                 <p className="text-[10px] text-blue-slate font-medium">Get exclusive story tips from Once Upon a Drawing</p>
+              </div>
+            </label>
+          )}
+
+          {!isLogin && (
+            <label className={`flex items-start gap-4 p-4 bg-off-white rounded-2xl border-2 cursor-pointer group hover:bg-pacific-cyan/5 transition-colors ${!formData.acceptedTerms ? 'border-soft-gold' : 'border-silver'}`}>
+              <input
+                type="checkbox"
+                checked={formData.acceptedTerms}
+                onChange={e => setFormData({...formData, acceptedTerms: e.target.checked})}
+                className="w-6 h-6 rounded-lg border-2 border-silver text-pacific-cyan focus:ring-pacific-cyan accent-pacific-cyan mt-0.5"
+              />
+              <div className="flex-1 text-left">
+                <p className="text-xs font-black text-gunmetal uppercase tracking-tight">I Accept the Terms <span className="text-soft-gold">*</span></p>
+                <p className="text-[10px] text-blue-slate font-medium">
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowInfoPage('terms'); }}
+                    className="text-pacific-cyan font-black hover:underline"
+                  >
+                    Terms of Service
+                  </button>
+                  {' '}and{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowInfoPage('privacy'); }}
+                    className="text-pacific-cyan font-black hover:underline"
+                  >
+                    Privacy Policy
+                  </button>
+                  , including the content guidelines prohibiting inappropriate uploads.
+                </p>
               </div>
             </label>
           )}
@@ -271,6 +315,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
       <p className="mt-8 text-center text-[10px] text-silver font-black uppercase tracking-[0.4em]">
         Verified by Sweetwater Security Protocol
       </p>
+
+      {showInfoPage && (
+        <InfoPages type={showInfoPage} onClose={() => setShowInfoPage(null)} />
+      )}
     </div>
   );
 };
