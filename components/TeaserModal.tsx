@@ -92,41 +92,41 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
           e.stopPropagation();
           onClose();
         }}
-        className="fixed top-4 right-4 md:top-6 md:right-6 w-12 h-12 md:w-14 md:h-14 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-xl border-2 border-silver/30 hover:scale-110 active:scale-90 z-[120] group"
+        className="fixed top-3 right-3 md:top-4 md:right-4 w-10 h-10 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 hover:scale-110 active:scale-90 z-[120] group"
       >
-        <svg className="w-6 h-6 md:w-7 md:h-7 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
       {/* Main Book Container */}
       <div
-        className="relative w-full max-w-4xl mx-4 md:mx-8"
+        className="relative w-full max-w-xl mx-4 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Title and Attribution */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight mb-2">
+        <div className="text-center mb-3 flex-shrink-0">
+          <h2 className="text-lg md:text-2xl font-black text-white tracking-tight mb-1">
             {creation.title}
           </h2>
           {artistAge && (
-            <p className="text-sm md:text-base text-white/60 italic">
+            <p className="text-xs md:text-sm text-white/60 italic">
               Created by a young artist, age {artistAge}
             </p>
           )}
         </div>
 
         {/* Book Page */}
-        <div className="relative bg-[#fffdf9] rounded-2xl md:rounded-[2rem] shadow-2xl overflow-hidden book-shadow">
+        <div className="relative bg-[#fffdf9] rounded-xl md:rounded-2xl shadow-2xl overflow-hidden book-shadow flex-1 min-h-0">
           {/* Paper texture overlay */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
 
           {/* Page Content */}
           <div
-            className={`transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
+            className={`transition-opacity duration-300 h-full flex flex-col ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
           >
             {/* Image Section */}
-            <div className="relative aspect-[4/3] md:aspect-[16/10] overflow-hidden">
+            <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
               {currentPageData && (
                 <img
                   src={currentPageData.url}
@@ -139,51 +139,51 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
             </div>
 
             {/* Text Section */}
-            <div className="p-6 md:p-10 lg:p-12">
+            <div className="p-4 md:p-6 flex-1 overflow-y-auto">
               {!isLastPage ? (
                 <>
                   {/* Story Text */}
-                  <div className="max-w-2xl mx-auto text-center">
-                    <div className="text-soft-gold/60 text-3xl md:text-4xl font-serif mb-2">"</div>
-                    <p className="text-lg md:text-2xl lg:text-3xl font-serif italic text-gunmetal leading-relaxed">
+                  <div className="max-w-lg mx-auto text-center">
+                    <div className="text-soft-gold/60 text-xl md:text-2xl font-serif mb-1">"</div>
+                    <p className="text-sm md:text-base lg:text-lg font-serif italic text-gunmetal leading-relaxed">
                       {currentPageData?.text}
                     </p>
-                    <div className="text-soft-gold/60 text-3xl md:text-4xl font-serif mt-2 rotate-180">"</div>
+                    <div className="text-soft-gold/60 text-xl md:text-2xl font-serif mt-1 rotate-180">"</div>
                   </div>
 
                   {/* Page Counter */}
-                  <div className="mt-6 md:mt-8 text-center">
-                    <span className="inline-block px-4 py-2 bg-silver/20 text-blue-slate rounded-full text-xs md:text-sm font-bold uppercase tracking-widest">
+                  <div className="mt-4 text-center">
+                    <span className="inline-block px-3 py-1.5 bg-silver/20 text-blue-slate rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest">
                       Page {currentPage + 1} of {totalPages}
                     </span>
                   </div>
                 </>
               ) : (
                 /* CTA Page - Last Page */
-                <div className="text-center py-4 md:py-8">
-                  <h3 className="text-2xl md:text-4xl font-black text-gunmetal mb-3">
+                <div className="text-center py-2">
+                  <h3 className="text-lg md:text-xl font-black text-gunmetal mb-2">
                     Every drawing has a story waiting to be told
                   </h3>
 
-                  <p className="text-base md:text-lg text-blue-slate mb-8 max-w-md mx-auto">
+                  <p className="text-sm text-blue-slate mb-4 max-w-sm mx-auto">
                     Turn any artwork into a 12-page illustrated storybook. It's free to start!
                   </p>
 
                   <button
                     onClick={handleStartCreating}
-                    className="px-8 py-4 md:px-10 md:py-5 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-lg md:text-xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-pacific-cyan/30 group"
+                    className="px-6 py-3 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-sm md:text-base hover:scale-105 active:scale-95 transition-all shadow-xl shadow-pacific-cyan/30 group"
                   >
                     <span className="flex items-center gap-2">
                       Start With Your Drawing
-                      <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     </span>
                   </button>
 
                   {/* Page Counter on CTA page */}
-                  <div className="mt-8">
-                    <span className="inline-block px-4 py-2 bg-silver/20 text-blue-slate rounded-full text-xs md:text-sm font-bold uppercase tracking-widest">
+                  <div className="mt-4">
+                    <span className="inline-block px-3 py-1.5 bg-silver/20 text-blue-slate rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest">
                       Page {currentPage + 1} of {totalPages}
                     </span>
                   </div>
@@ -198,13 +198,13 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
         <button
           onClick={goToPrevPage}
           disabled={isFirstPage || isTransitioning}
-          className={`absolute left-0 md:-left-6 top-1/2 -translate-y-1/2 -translate-x-full md:-translate-x-1/2 w-12 h-12 md:w-14 md:h-14 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-xl border-2 border-silver/30 z-[110] ${
+          className={`absolute left-0 md:-left-4 top-1/2 -translate-y-1/2 -translate-x-full md:-translate-x-1/2 w-10 h-10 md:w-11 md:h-11 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 z-[110] ${
             isFirstPage
               ? 'opacity-0 pointer-events-none'
               : 'opacity-100 hover:scale-110 active:scale-90'
           }`}
         >
-          <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -213,19 +213,19 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
         <button
           onClick={goToNextPage}
           disabled={isLastPage || isTransitioning}
-          className={`absolute right-0 md:-right-6 top-1/2 -translate-y-1/2 translate-x-full md:translate-x-1/2 w-12 h-12 md:w-14 md:h-14 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-xl border-2 border-silver/30 z-[110] ${
+          className={`absolute right-0 md:-right-4 top-1/2 -translate-y-1/2 translate-x-full md:translate-x-1/2 w-10 h-10 md:w-11 md:h-11 bg-white/90 hover:bg-white text-gunmetal rounded-full flex items-center justify-center transition-all shadow-lg border-2 border-silver/30 z-[110] ${
             isLastPage
               ? 'opacity-0 pointer-events-none'
               : 'opacity-100 hover:scale-110 active:scale-90'
           }`}
         >
-          <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
           </svg>
         </button>
 
         {/* Progress Indicator */}
-        <div className="flex justify-center items-center gap-2 mt-6">
+        <div className="flex justify-center items-center gap-1.5 mt-4 flex-shrink-0">
           {pages.map((_, idx) => (
             <button
               key={idx}
@@ -238,10 +238,10 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
                   }, 300);
                 }
               }}
-              className={`h-2 rounded-full transition-all duration-300 ${
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 currentPage === idx
-                  ? 'w-8 bg-pacific-cyan shadow-[0_0_12px_rgba(98,146,158,0.7)]'
-                  : 'w-2 bg-white/30 hover:bg-white/50'
+                  ? 'w-6 bg-pacific-cyan shadow-[0_0_10px_rgba(98,146,158,0.7)]'
+                  : 'w-1.5 bg-white/30 hover:bg-white/50'
               }`}
               aria-label={`Go to page ${idx + 1}`}
             />
