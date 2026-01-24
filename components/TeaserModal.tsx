@@ -125,7 +125,7 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
           {/* Book Pages - Side by Side */}
           <div className={`flex flex-col md:flex-row transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
             {/* LEFT PAGE: Illustration */}
-            <div className="w-full md:w-1/2 h-56 md:h-80 relative overflow-hidden bg-slate-100">
+            <div className="w-full md:w-1/2 h-64 md:h-[420px] relative overflow-hidden bg-slate-100">
               {currentPageData && (
                 <img
                   src={currentPageData.url}
@@ -138,7 +138,7 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
             </div>
 
             {/* RIGHT PAGE: Story Text or CTA */}
-            <div className="w-full md:w-1/2 h-auto md:h-80 relative overflow-hidden bg-[#fffdf9] p-6 md:p-8 flex flex-col justify-center items-center text-center">
+            <div className="w-full md:w-1/2 h-auto md:h-[420px] relative overflow-hidden bg-[#fffdf9] p-6 md:p-10 flex flex-col justify-center items-center text-center">
               {/* Paper texture */}
               <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
               {/* Edge shadow */}
@@ -147,45 +147,45 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
               <div className="z-10 w-full">
                 {!isLastPage ? (
                   /* Story Pages */
-                  <div className="space-y-4">
-                    <div className="text-soft-gold/50 text-3xl font-serif">"</div>
-                    <p className="text-base md:text-lg font-serif italic text-gunmetal leading-relaxed px-2">
+                  <div className="space-y-5">
+                    <div className="text-soft-gold/50 text-4xl font-serif">"</div>
+                    <p className="text-base md:text-xl font-serif italic text-gunmetal leading-relaxed px-2">
                       {currentPageData?.text}
                     </p>
-                    <div className="text-soft-gold/50 text-3xl font-serif rotate-180">"</div>
+                    <div className="text-soft-gold/50 text-4xl font-serif rotate-180">"</div>
 
                     {/* Page number */}
-                    <div className="pt-3">
-                      <span className="text-[10px] md:text-xs text-blue-slate/60 font-bold uppercase tracking-widest">
+                    <div className="pt-4">
+                      <span className="text-xs text-blue-slate/60 font-bold uppercase tracking-widest">
                         Page {currentPage + 1}
                       </span>
                     </div>
                   </div>
                 ) : (
                   /* CTA Page */
-                  <div className="space-y-4">
-                    <h3 className="text-lg md:text-xl font-black text-gunmetal leading-tight">
+                  <div className="space-y-5">
+                    <h3 className="text-xl md:text-2xl font-black text-gunmetal leading-tight">
                       Every drawing has a story waiting to be told
                     </h3>
 
-                    <p className="text-sm text-blue-slate">
+                    <p className="text-sm md:text-base text-blue-slate">
                       Turn any artwork into a 12-page illustrated storybook. It's free to start!
                     </p>
 
                     <button
                       onClick={handleStartCreating}
-                      className="mt-2 px-6 py-3 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-sm hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pacific-cyan/30 group"
+                      className="mt-3 px-8 py-4 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-base hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pacific-cyan/30 group"
                     >
                       <span className="flex items-center gap-2">
                         Start With Your Drawing
-                        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                         </svg>
                       </span>
                     </button>
 
-                    <div className="pt-2">
-                      <span className="text-[10px] md:text-xs text-blue-slate/60 font-bold uppercase tracking-widest">
+                    <div className="pt-3">
+                      <span className="text-xs text-blue-slate/60 font-bold uppercase tracking-widest">
                         Page {currentPage + 1}
                       </span>
                     </div>
