@@ -125,23 +125,23 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
           <div
             className={`transition-opacity duration-300 h-full flex flex-col ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
           >
-            {/* Image Section */}
-            <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
-              {currentPageData && (
-                <img
-                  src={currentPageData.url}
-                  alt={`${creation.title} - Page ${currentPage + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              )}
-              {/* Subtle vignette effect */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none"></div>
-            </div>
+            {!isLastPage ? (
+              <>
+                {/* Image Section - Story pages only */}
+                <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
+                  {currentPageData && (
+                    <img
+                      src={currentPageData.url}
+                      alt={`${creation.title} - Page ${currentPage + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
+                  {/* Subtle vignette effect */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none"></div>
+                </div>
 
-            {/* Text Section */}
-            <div className="p-4 md:p-6 flex-1 overflow-y-auto">
-              {!isLastPage ? (
-                <>
+                {/* Text Section - Story pages only */}
+                <div className="p-4 md:p-6 flex-1 overflow-y-auto">
                   {/* Story Text */}
                   <div className="max-w-lg mx-auto text-center">
                     <div className="text-soft-gold/60 text-xl md:text-2xl font-serif mb-1">"</div>
@@ -157,39 +157,56 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
                       Page {currentPage + 1} of {totalPages}
                     </span>
                   </div>
-                </>
-              ) : (
-                /* CTA Page - Last Page */
-                <div className="text-center py-2">
-                  <h3 className="text-lg md:text-xl font-black text-gunmetal mb-2">
-                    Every drawing has a story waiting to be told
-                  </h3>
+                </div>
+              </>
+            ) : (
+                /* CTA Page - Last Page - Side by side layout */
+                <div className="flex flex-col md:flex-row h-full">
+                  {/* Left side - Image */}
+                  <div className="md:w-1/2 flex-shrink-0">
+                    <div className="relative h-48 md:h-full overflow-hidden">
+                      {currentPageData && (
+                        <img
+                          src={currentPageData.url}
+                          alt={`${creation.title} - Page ${currentPage + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10 pointer-events-none hidden md:block"></div>
+                    </div>
+                  </div>
 
-                  <p className="text-sm text-blue-slate mb-4 max-w-sm mx-auto">
-                    Turn any artwork into a 12-page illustrated storybook. It's free to start!
-                  </p>
+                  {/* Right side - CTA Content */}
+                  <div className="md:w-1/2 p-4 md:p-6 flex flex-col justify-center items-center text-center bg-[#fffdf9]">
+                    <h3 className="text-base md:text-lg font-black text-gunmetal mb-2">
+                      Every drawing has a story waiting to be told
+                    </h3>
 
-                  <button
-                    onClick={handleStartCreating}
-                    className="px-6 py-3 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-sm md:text-base hover:scale-105 active:scale-95 transition-all shadow-xl shadow-pacific-cyan/30 group"
-                  >
-                    <span className="flex items-center gap-2">
-                      Start With Your Drawing
-                      <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </span>
-                  </button>
+                    <p className="text-xs md:text-sm text-blue-slate mb-4 max-w-xs">
+                      Turn any artwork into a 12-page illustrated storybook. It's free to start!
+                    </p>
 
-                  {/* Page Counter on CTA page */}
-                  <div className="mt-4">
-                    <span className="inline-block px-3 py-1.5 bg-silver/20 text-blue-slate rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest">
-                      Page {currentPage + 1} of {totalPages}
-                    </span>
+                    <button
+                      onClick={handleStartCreating}
+                      className="px-5 py-2.5 bg-gradient-to-r from-pacific-cyan to-soft-gold text-white rounded-full font-black text-xs md:text-sm hover:scale-105 active:scale-95 transition-all shadow-lg shadow-pacific-cyan/30 group"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        Start With Your Drawing
+                        <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </span>
+                    </button>
+
+                    {/* Page Counter */}
+                    <div className="mt-4">
+                      <span className="inline-block px-2.5 py-1 bg-silver/20 text-blue-slate rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-widest">
+                        Page {currentPage + 1} of {totalPages}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
