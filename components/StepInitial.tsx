@@ -240,7 +240,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
                   </div>
                 </div>
                 <p className="text-2xl text-silver/80 leading-relaxed font-medium">
-                  The memory is now permanent. Access an <span className="text-white font-black border-b-8 border-white/20">instant digital storybook</span> to share with family, or order a museum-grade hardcover. Every book is printed on archival paper, designed to sit on your coffee table for generations.
+                  The memory is now permanent. Print a <span className="text-white font-black border-b-8 border-white/20">museum-grade hardcover book</span> to share with family and preserve forever. Every book is printed on archival paper, designed to sit on your coffee table for generations.
                 </p>
               </div>
               <div className="w-full lg:w-1/2 relative group">
