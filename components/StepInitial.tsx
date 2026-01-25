@@ -5,23 +5,23 @@ import FeaturedGallery from './FeaturedGallery';
 const faqData = [
   {
     question: "How does the transformation process work?",
-    answer: "Simply upload a photo of any drawing, scribble, or painting. Our AI Vision engine analyzes the colors, strokes, and intent behind the artwork. Then our Alchemy process transforms it into 12 cinematic storybook spreads and a high-definition animation—all in just a few minutes."
+    answer: "Simply upload a photo of any drawing, scribble, or painting. Sage, our magical AI, analyzes the colors, strokes, and intent behind the artwork. Then our Alchemy process transforms it into 12 cinematic storybook spreads and a high-definition animation—all in just a few minutes."
   },
   {
     question: "What kind of drawings can I upload?",
-    answer: "Anything! Crayon masterpieces, pencil sketches, finger paintings, watercolors—if a child (or adult!) drew it, we can transform it. The AI works with any style, from abstract scribbles to detailed scenes. Even that crinkled drawing from the attic works perfectly."
+    answer: "Anything family-friendly! Crayon masterpieces, pencil sketches, finger paintings, watercolors—if a child (or adult!) drew it, we can transform it. Sage works with any style, from abstract scribbles to detailed scenes. Please note that drawings depicting violence or inappropriate content cannot be processed."
   },
   {
     question: "How long does it take to create a storybook?",
-    answer: "The digital storybook and animation are generated in about 2-3 minutes. If you order a printed hardcover book, it's printed on museum-grade archival paper and typically ships within 5-7 business days."
+    answer: "The digital storybook and animation are generated in about 2-3 minutes. If you order a printed hardcover book, it's printed on high-quality matte paper and typically ships within 5-7 business days."
   },
   {
-    question: "Can I edit the story after it's generated?",
-    answer: "Yes! After the initial generation, you can regenerate individual pages, adjust the narrative, and fine-tune the story until it's perfect. Your creation is saved to your account so you can return to edit it anytime."
+    question: "Can I save my creation?",
+    answer: "Yes! You can save up to 3 creations for free. Need more space? Our add-on packages let you expand your library. Saved creations can be accessed anytime to view your digital storybook, watch the animation, or order a printed copy."
   },
   {
     question: "What's included in the printed book?",
-    answer: "Each hardcover book is museum-quality: 12 full-spread cinematic illustrations, printed on archival paper designed to last generations. The books feature premium binding, vibrant colors, and a dust jacket. It's designed to be a family heirloom."
+    answer: "Each hardcover book features 12 full-spread cinematic illustrations printed on high-quality matte paper. The books include premium binding and vibrant colors—designed to be a treasured keepsake for your family."
   },
   {
     question: "Do my credits expire?",
@@ -163,18 +163,18 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
           </div>
 
           <div className="space-y-64">
-            {/* 01: Vision Input */}
+            {/* 01: Sage Sees */}
             <div className="flex flex-col lg:flex-row items-center gap-20 lg:gap-40">
               <div className="w-full lg:w-1/2 space-y-10">
                 <div className="relative">
                   <span className="text-[15rem] font-black text-white/5 italic leading-none absolute -top-24 -left-12 select-none">01</span>
                   <div className="relative z-10 space-y-2">
                     <p className="text-xs font-black text-pacific-cyan uppercase tracking-[0.5em]">The Beginning</p>
-                    <h4 className="text-5xl font-black text-white uppercase tracking-tighter">Vision Input</h4>
+                    <h4 className="text-5xl font-black text-white uppercase tracking-tighter">Sage Sees</h4>
                   </div>
                 </div>
                 <p className="text-2xl text-silver/80 leading-relaxed font-medium">
-                  Snap a photo of any drawing, scribble, or painting. Our AI "Vision" engine doesn't just see pixels—it looks through the years to find the <span className="text-white font-black border-b-8 border-soft-gold/30">original character's heart</span>. We extract colors, intent, and personality from every stroke.
+                  Snap a photo of any drawing, scribble, or painting. Sage AI doesn't just see pixels—it looks through the years to find the <span className="text-white font-black border-b-8 border-soft-gold/30">original character's heart</span>. We extract colors, intent, and personality from every stroke.
                 </p>
                 <div className="flex gap-6">
                   <div className="flex items-center gap-4 text-white/40">
@@ -194,7 +194,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
                   <img 
                     src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=1200" 
                     className="w-full h-full object-cover rounded-[4rem] grayscale group-hover:grayscale-0 transition-all duration-1000" 
-                    alt="Vision Input Example" 
+                    alt="Sage AI analyzing artwork" 
                   />
                 </div>
               </div>
@@ -394,7 +394,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
           {/* Additional help text */}
           <div className="text-center mt-12">
             <p className="text-silver/60 text-sm font-medium">
-              Still have questions? We'd love to help — <a href="mailto:support@onceuponadrawing.com" className="text-pacific-cyan hover:underline transition-colors">support@onceuponadrawing.com</a>
+              Still have questions? We'd love to help — <a href="mailto:team@onceuponadrawing.com" className="text-pacific-cyan hover:underline transition-colors">team@onceuponadrawing.com</a>
             </p>
           </div>
         </div>
@@ -413,7 +413,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
            >
               ENTER THE STUDIO ✨
            </button>
-           <p className="text-[12px] text-silver font-black uppercase tracking-[0.6em] mt-12">No Credit Card Required • Free to Draft</p>
+           <p className="text-[12px] text-silver font-black uppercase tracking-[0.6em] mt-12">No Credit Card Required • 3 Free Creations</p>
         </div>
       </section>
 
