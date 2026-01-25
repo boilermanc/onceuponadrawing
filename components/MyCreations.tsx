@@ -8,6 +8,7 @@ import {
 } from '../services/creationsService';
 import { supabase } from '../services/supabaseClient';
 import BookPurchaseModal from './BookPurchaseModal';
+import { useVisibilityRefresh, isAbortError } from '../hooks/useVisibilityRefresh';
 
 interface MyCreationsProps {
   userId: string;
@@ -29,6 +30,9 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
   const [bookPurchaseCreation, setBookPurchaseCreation] = useState<Creation | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
 
+  // Visibility refresh hook for handling stale connections
+  const { refreshKey, getSignal } = useVisibilityRefresh();
+
   // Fetch user email on mount
   useEffect(() => {
     const fetchUserEmail = async () => {
@@ -44,9 +48,10 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
     fetchUserEmail();
   }, []);
 
-  // Fetch creations on mount
+  // Fetch creations on mount and when tab becomes visible
   useEffect(() => {
     console.log('[MyCreations] useEffect running...');
+    const signal = getSignal();
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -55,9 +60,16 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
       try {
         console.log('[MyCreations] About to call getCreations...');
         const [creationsData, statusData] = await Promise.all([
-          getCreations(userId),
-          canSaveCreation(userId),
+          getCreations(userId, signal),
+          canSaveCreation(userId, signal),
         ]);
+
+        // Check if aborted before updating state
+        if (signal.aborted) {
+          console.log('[MyCreations] Request was aborted, skipping state update');
+          return;
+        }
+
         console.log('[MyCreations] getCreations returned:', creationsData);
         console.log('[MyCreations] statusData returned:', statusData);
 
@@ -65,16 +77,23 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
         setSaveStatus({ savesUsed: statusData.savesUsed, limit: statusData.limit });
         console.log('[MyCreations] State updated, about to exit try block');
       } catch (err) {
+        if (isAbortError(err)) {
+          console.log('[MyCreations] Request aborted');
+          return;
+        }
         console.error('[MyCreations] Caught error:', err);
         setError('Failed to load your creations. Please try again.');
       } finally {
-        console.log('[MyCreations] Finally block - setting isLoading to false');
-        setIsLoading(false);
+        // Only set loading false if not aborted
+        if (!signal.aborted) {
+          console.log('[MyCreations] Finally block - setting isLoading to false');
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [userId]);
+  }, [userId, refreshKey, getSignal]);
 
   const handleCardClick = async (creation: Creation) => {
     if (creation.is_locked) {

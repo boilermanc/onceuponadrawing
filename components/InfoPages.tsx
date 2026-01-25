@@ -253,6 +253,9 @@ const InfoPages: React.FC<InfoPagesProps> = ({ type, onClose }) => {
                       <p className="text-blue-slate font-medium leading-relaxed">
                         The User retains full copyright of the original uploaded artwork. By using the service, you grant Sweetwater Technologies a non-exclusive, worldwide, royalty-free, temporary license to reproduce, modify, and transform the artwork into "Studio Output" (Animations and Books). This license is revoked upon account deletion or after the 30-day archival period for guest orders.
                       </p>
+                      <p className="text-blue-slate font-medium leading-relaxed">
+                        <strong>Promotional Use:</strong> You also grant Sweetwater Technologies a non-exclusive, worldwide, royalty-free, perpetual license to use, display, and reproduce your uploaded artwork and resulting Studio Output in promotional materials, marketing content, social media, website galleries, and advertising. We will never sell your artwork to third parties, and any promotional use will be to showcase the magic of our service. If you prefer your creations not be featured, you may opt out by contacting us at team@onceuponadrawing.com.
+                      </p>
                     </section>
 
                     <section className="space-y-4">

@@ -134,6 +134,16 @@ async function getSignedUrl(
   return data.signedUrl;
 }
 
+/**
+ * Helper to check if an error is from an aborted request
+ */
+function isAbortError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.name === 'AbortError' || error.message.includes('aborted');
+  }
+  return false;
+}
+
 // ============================================================================
 // EXPORTED FUNCTIONS
 // ============================================================================
@@ -143,22 +153,42 @@ async function getSignedUrl(
  * Orders by created_at descending (newest first)
  * Includes thumbnail_url for the first page image
  */
-export async function getCreations(userId: string): Promise<Creation[]> {
+export async function getCreations(userId: string, signal?: AbortSignal): Promise<Creation[]> {
   console.log('[getCreations] Calling RPC with userId:', userId);
-  
+
+  // Check if already aborted
+  if (signal?.aborted) {
+    console.log('[getCreations] Request already aborted');
+    return [];
+  }
+
   try {
-    const { data, error } = await supabase.rpc('get_accessible_creations', {
+    const query = supabase.rpc('get_accessible_creations', {
       user_uuid: userId,
     });
+
+    // Add abort signal if provided
+    const { data, error } = signal
+      ? await query.abortSignal(signal)
+      : await query;
 
     console.log('[getCreations] RPC response:', { data: data?.length, error });
 
     if (error) {
+      if (isAbortError(error)) {
+        console.log('[getCreations] Request aborted');
+        return [];
+      }
       console.error('[getCreations] Failed to get creations:', error);
       return [];
     }
 
     if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Check abort before thumbnail generation
+    if (signal?.aborted) {
       return [];
     }
 
@@ -175,6 +205,10 @@ export async function getCreations(userId: string): Promise<Creation[]> {
 
     return creationsWithThumbnails;
   } catch (err) {
+    if (isAbortError(err)) {
+      console.log('[getCreations] Request aborted');
+      return [];
+    }
     console.error('[getCreations] Unexpected error:', err);
     return [];
   }
@@ -183,14 +217,22 @@ export async function getCreations(userId: string): Promise<Creation[]> {
 /**
  * Check if a user can save a new creation based on their subscription status
  */
-export async function canSaveCreation(userId: string): Promise<CanSaveResult> {
+export async function canSaveCreation(userId: string, signal?: AbortSignal): Promise<CanSaveResult> {
+  // Check if already aborted
+  if (signal?.aborted) {
+    return { canSave: false, reason: 'limit_reached', savesUsed: 0, limit: 3 };
+  }
+
   // Call the database function
-  const { data: canSave, error: rpcError } = await supabase.rpc(
-    'can_user_save_creation',
-    { user_uuid: userId }
-  );
+  const rpcQuery = supabase.rpc('can_user_save_creation', { user_uuid: userId });
+  const { data: canSave, error: rpcError } = signal
+    ? await rpcQuery.abortSignal(signal)
+    : await rpcQuery;
 
   if (rpcError) {
+    if (isAbortError(rpcError)) {
+      return { canSave: false, reason: 'limit_reached', savesUsed: 0, limit: 3 };
+    }
     console.error('Failed to check save eligibility:', rpcError);
     return {
       canSave: false,
@@ -200,14 +242,27 @@ export async function canSaveCreation(userId: string): Promise<CanSaveResult> {
     };
   }
 
+  // Check abort before profile fetch
+  if (signal?.aborted) {
+    return { canSave: Boolean(canSave), savesUsed: 0, limit: 3 };
+  }
+
   // Fetch user profile for detailed info
-  const { data: profile, error: profileError } = await supabase
+  let profileQuery = supabase
     .from('profiles')
     .select('free_saves_used, subscription_tier, subscription_expires_at')
-    .eq('id', userId)
-    .single();
+    .eq('id', userId);
+
+  if (signal) {
+    profileQuery = profileQuery.abortSignal(signal);
+  }
+
+  const { data: profile, error: profileError } = await profileQuery.single();
 
   if (profileError) {
+    if (isAbortError(profileError)) {
+      return { canSave: Boolean(canSave), savesUsed: 0, limit: 3 };
+    }
     console.error('Failed to fetch profile:', profileError);
     return {
       canSave: Boolean(canSave),
@@ -404,10 +459,11 @@ export async function deleteCreation(
  */
 export async function getCreation(
   userId: string,
-  creationId: string
+  creationId: string,
+  signal?: AbortSignal
 ): Promise<CreationWithSignedUrls | null> {
   // Get all accessible creations to check lock status
-  const creations = await getCreations(userId);
+  const creations = await getCreations(userId, signal);
   const creation = creations.find((c) => c.id === creationId);
 
   if (!creation) {

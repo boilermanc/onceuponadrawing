@@ -69,13 +69,18 @@ export const createOrder = async (userId: string, drawingId: string | undefined,
   return data;
 };
 
-export const getProfile = async (userId: string) => {
-  const { data, error } = await supabase
+export const getProfile = async (userId: string, signal?: AbortSignal) => {
+  let query = supabase
     .from('profiles')
     .select('*')
-    .eq('id', userId)
-    .single();
-  
+    .eq('id', userId);
+
+  if (signal) {
+    query = query.abortSignal(signal);
+  }
+
+  const { data, error } = await query.single();
+
   if (error) return null;
   return data;
 };

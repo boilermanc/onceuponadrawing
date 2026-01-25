@@ -1,6 +1,77 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import FeaturedGallery from './FeaturedGallery';
+
+const faqData = [
+  {
+    question: "How does the transformation process work?",
+    answer: "Simply upload a photo of any drawing, scribble, or painting. Our AI Vision engine analyzes the colors, strokes, and intent behind the artwork. Then our Alchemy process transforms it into 12 cinematic storybook spreads and a high-definition animation—all in just a few minutes."
+  },
+  {
+    question: "What kind of drawings can I upload?",
+    answer: "Anything! Crayon masterpieces, pencil sketches, finger paintings, watercolors—if a child (or adult!) drew it, we can transform it. The AI works with any style, from abstract scribbles to detailed scenes. Even that crinkled drawing from the attic works perfectly."
+  },
+  {
+    question: "How long does it take to create a storybook?",
+    answer: "The digital storybook and animation are generated in about 2-3 minutes. If you order a printed hardcover book, it's printed on museum-grade archival paper and typically ships within 5-7 business days."
+  },
+  {
+    question: "Can I edit the story after it's generated?",
+    answer: "Yes! After the initial generation, you can regenerate individual pages, adjust the narrative, and fine-tune the story until it's perfect. Your creation is saved to your account so you can return to edit it anytime."
+  },
+  {
+    question: "What's included in the printed book?",
+    answer: "Each hardcover book is museum-quality: 12 full-spread cinematic illustrations, printed on archival paper designed to last generations. The books feature premium binding, vibrant colors, and a dust jacket. It's designed to be a family heirloom."
+  },
+  {
+    question: "Do my credits expire?",
+    answer: "Credits are valid for one year from the date of purchase. Your free credits never expire as long as your account is active. Each creation uses one credit, which includes the digital storybook, animation, and the option to order a printed book."
+  }
+];
+
+interface FAQItemProps {
+  question: string;
+  answer: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  index: number;
+}
+
+const FAQItem: React.FC<FAQItemProps> = ({ question, answer, isOpen, onToggle, index }) => {
+  return (
+    <div className={`border-b border-silver/20 last:border-b-0 ${index === 0 ? '' : ''}`}>
+      <button
+        onClick={onToggle}
+        className="w-full py-6 md:py-8 px-6 md:px-10 flex items-center justify-between gap-4 hover:bg-pacific-cyan/5 transition-all duration-300 group text-left"
+      >
+        <h4 className="text-lg md:text-xl font-black text-gunmetal group-hover:text-pacific-cyan transition-colors pr-4">
+          {question}
+        </h4>
+        <div className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-500 ${isOpen ? 'bg-pacific-cyan rotate-180' : 'bg-silver/20 group-hover:bg-pacific-cyan/20'}`}>
+          <svg
+            className={`w-5 h-5 md:w-6 md:h-6 transition-colors duration-300 ${isOpen ? 'text-white' : 'text-gunmetal/60 group-hover:text-pacific-cyan'}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+      <div
+        className={`grid transition-all duration-500 ease-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-6 md:px-10 pb-8 pt-2">
+            <p className="text-blue-slate text-base md:text-lg leading-relaxed font-medium">
+              {answer}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface StepInitialProps {
   onStart: () => void;
@@ -8,6 +79,12 @@ interface StepInitialProps {
 }
 
 const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+
+  const toggleFAQ = (index: number) => {
+    setOpenFAQ(openFAQ === index ? null : index);
+  };
+
   return (
     <div className="flex flex-col items-center py-0 px-0 max-w-full mx-auto animate-in fade-in duration-1000 overflow-x-hidden bg-off-white">
       
@@ -278,6 +355,51 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="w-full py-32 md:py-48 bg-gunmetal relative overflow-hidden">
+        {/* Animated background blobs */}
+        <div className="absolute top-20 left-10 w-96 h-96 bg-pacific-cyan/10 rounded-full blur-[150px] animate-blob"></div>
+        <div className="absolute bottom-20 right-10 w-80 h-80 bg-soft-gold/10 rounded-full blur-[120px] animate-blob animation-delay-2000"></div>
+
+        <div className="max-w-5xl mx-auto px-6 relative z-10">
+          <div className="text-center mb-16 md:mb-24">
+            <div className="inline-block px-4 py-1.5 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-[10px] font-black uppercase tracking-[0.4em] mb-6">
+              Got Questions?
+            </div>
+            <h3 className="text-4xl md:text-7xl font-black text-white tracking-tighter italic font-serif">
+              Frequently Asked <span className="text-pacific-cyan">Questions</span>
+            </h3>
+            <p className="text-silver font-medium text-lg md:text-2xl mt-6 max-w-2xl mx-auto opacity-70">
+              Everything you need to know about transforming drawings into stories.
+            </p>
+          </div>
+
+          {/* FAQ Accordion Container */}
+          <div className="relative">
+            <div className="absolute -inset-4 bg-gradient-to-r from-pacific-cyan/20 via-soft-gold/10 to-pacific-cyan/20 rounded-[4rem] blur-2xl opacity-40"></div>
+            <div className="relative bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden border border-white/20">
+              {faqData.map((faq, index) => (
+                <FAQItem
+                  key={index}
+                  index={index}
+                  question={faq.question}
+                  answer={faq.answer}
+                  isOpen={openFAQ === index}
+                  onToggle={() => toggleFAQ(index)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Additional help text */}
+          <div className="text-center mt-12">
+            <p className="text-silver/60 text-sm font-medium">
+              Still have questions? We'd love to help — <a href="mailto:support@onceuponadrawing.com" className="text-pacific-cyan hover:underline transition-colors">support@onceuponadrawing.com</a>
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Thin Horizontal Divider before Final CTA */}
       <div className="w-full h-px bg-silver/20"></div>
 
@@ -305,6 +427,18 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
         }
         .shadow-4xl {
           box-shadow: 0 60px 120px -30px rgba(0, 0, 0, 0.3);
+        }
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(20px, -30px) scale(1.1); }
+          50% { transform: translate(-20px, 20px) scale(0.95); }
+          75% { transform: translate(30px, 10px) scale(1.05); }
+        }
+        .animate-blob {
+          animation: blob 8s ease-in-out infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
         }
       `}</style>
     </div>

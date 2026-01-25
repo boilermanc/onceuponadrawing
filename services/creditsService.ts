@@ -33,16 +33,39 @@ export type PackName = keyof typeof CREDIT_PACK_PRICES;
 export { FREE_CREATION_LIMIT, CREDIT_PACK_PRICES };
 
 /**
+ * Helper to check if an error is from an aborted request
+ */
+function isAbortError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.name === 'AbortError' || error.message.includes('aborted');
+  }
+  return false;
+}
+
+/**
  * Get the current credit balance for a user
  */
-export async function getCreditBalance(userId: string): Promise<CreditBalance> {
-  const { data: profile, error } = await supabase
+export async function getCreditBalance(userId: string, signal?: AbortSignal): Promise<CreditBalance> {
+  // Check if already aborted
+  if (signal?.aborted) {
+    throw new Error('Request aborted');
+  }
+
+  let query = supabase
     .from('profiles')
     .select('free_saves_used, credit_balance')
-    .eq('id', userId)
-    .single();
+    .eq('id', userId);
+
+  if (signal) {
+    query = query.abortSignal(signal);
+  }
+
+  const { data: profile, error } = await query.single();
 
   if (error) {
+    if (isAbortError(error)) {
+      throw new Error('Request aborted');
+    }
     console.error('[creditsService] Error fetching profile:', error);
     throw new Error('Failed to fetch credit balance');
   }
@@ -61,12 +84,12 @@ export async function getCreditBalance(userId: string): Promise<CreditBalance> {
 /**
  * Check if a user can create a new creation
  */
-export async function canCreate(userId: string): Promise<CanCreateResult> {
+export async function canCreate(userId: string, signal?: AbortSignal): Promise<CanCreateResult> {
   if (!userId) {
     return { canCreate: false, reason: 'not_authenticated', willUse: null };
   }
 
-  const balance = await getCreditBalance(userId);
+  const balance = await getCreditBalance(userId, signal);
 
   if (balance.freeRemaining > 0) {
     return { canCreate: true, reason: 'ok', willUse: 'free' };

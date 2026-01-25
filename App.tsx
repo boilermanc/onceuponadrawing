@@ -14,6 +14,7 @@ import {
 import { canSaveCreation, saveCreation, CreationWithSignedUrls } from './services/creationsService';
 import { getCreditBalance, canCreate, useCredit, CreditBalance } from './services/creditsService';
 import { createCheckout } from './services/stripeService';
+import { useVisibilityRefresh, isAbortError } from './hooks/useVisibilityRefresh';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import StepInitial from './components/StepInitial';
@@ -76,55 +77,70 @@ const App: React.FC = () => {
   // Admin dashboard state
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
-  // Supabase Auth Listener
+  // Visibility refresh hook for handling stale connections
+  const { refreshKey, getSignal } = useVisibilityRefresh();
+
+  // Supabase Auth Listener with visibility refresh support
   useEffect(() => {
+    const signal = getSignal();
+
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const profile = await getProfile(session.user.id);
-        setState(prev => ({
-          ...prev,
-          user: profile ? {
-            id: profile.id,
-            firstName: profile.first_name,
-            lastName: profile.last_name,
-            email: profile.email,
-            subscribed: profile.subscribed,
-            createdAt: profile.created_at
-          } : null
-        }));
-        // Fetch credit balance on login
-        try {
-          const balance = await getCreditBalance(session.user.id);
-          setCreditBalance(balance);
-        } catch (err) {
-          console.error('Failed to fetch credit balance:', err);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const profile = await getProfile(session.user.id, signal);
+          setState(prev => ({
+            ...prev,
+            user: profile ? {
+              id: profile.id,
+              firstName: profile.first_name,
+              lastName: profile.last_name,
+              email: profile.email,
+              subscribed: profile.subscribed,
+              createdAt: profile.created_at
+            } : null
+          }));
+          // Fetch credit balance on login
+          try {
+            const balance = await getCreditBalance(session.user.id, signal);
+            setCreditBalance(balance);
+          } catch (err) {
+            if (!isAbortError(err)) {
+              console.error('Failed to fetch credit balance:', err);
+            }
+          }
+        }
+      } catch (err) {
+        if (!isAbortError(err)) {
+          console.error('Failed to init auth:', err);
         }
       }
     };
 
     initAuth();
 
+    // Auth state changes should NOT use the signal - they need to always work
+    // regardless of tab visibility state
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const profile = await getProfile(session.user.id);
-        setState(prev => ({
-          ...prev,
-          user: profile ? {
-            id: profile.id,
-            firstName: profile.first_name,
-            lastName: profile.last_name,
-            email: profile.email,
-            subscribed: profile.subscribed,
-            createdAt: profile.created_at
-          } : null
-        }));
-        // Fetch credit balance on auth state change
         try {
+          const profile = await getProfile(session.user.id);
+          setState(prev => ({
+            ...prev,
+            user: profile ? {
+              id: profile.id,
+              firstName: profile.first_name,
+              lastName: profile.last_name,
+              email: profile.email,
+              subscribed: profile.subscribed,
+              createdAt: profile.created_at
+            } : null
+          }));
+          // Fetch credit balance on auth state change
           const balance = await getCreditBalance(session.user.id);
           setCreditBalance(balance);
         } catch (err) {
-          console.error('Failed to fetch credit balance:', err);
+          console.error('Failed to fetch profile/credits:', err);
         }
       } else {
         setState(prev => ({ ...prev, user: null }));
@@ -133,7 +149,7 @@ const App: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [refreshKey, getSignal]);
 
   // Restore draft on app load
   useEffect(() => {
