@@ -140,14 +140,14 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
               <div className="w-full lg:w-1/2 relative group">
                 <div className="absolute -inset-10 bg-soft-gold/20 blur-[100px] rounded-full group-hover:bg-soft-gold/30 transition-all opacity-50"></div>
                 <div className="relative bg-white/5 p-6 rounded-[5rem] shadow-4xl backdrop-blur-sm border border-white/10 overflow-hidden aspect-[4/3]">
-                  <img 
-                    src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1200" 
-                    className="w-full h-full object-cover rounded-[4rem] group-hover:scale-110 transition-transform duration-[3000ms]" 
-                    alt="Alchemy Example" 
+                  <video
+                    src="https://cdhymstkzhlxcucbzipr.supabase.co/storage/v1/object/public/public-videos/1769035958537-jec6ru-story.mp4"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover rounded-[4rem]"
                   />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-soft-gold/90 backdrop-blur-md rounded-full flex items-center justify-center text-white text-5xl shadow-4xl animate-pulse cursor-pointer">
-                    ▶
-                  </div>
                 </div>
               </div>
             </div>
