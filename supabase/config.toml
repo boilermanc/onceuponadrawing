@@ -27,3 +27,20 @@ verify_jwt = false
 
 [functions.process-book-order]
 verify_jwt = false
+
+[functions.lulu-webhook]
+verify_jwt = false
+
+[functions.manage-lulu-webhooks]
+verify_jwt = false
+
+[functions.get-featured-creations]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-featured-creations/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/get-featured-creations/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/get-featured-creations/*.html" ]

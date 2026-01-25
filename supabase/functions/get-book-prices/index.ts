@@ -2,8 +2,8 @@ const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
 
 const BOOK_PRICE_IDS = {
   ebook: 'price_1SsRkzGzopxGCjLeKjAifMlZ',
-  softcover: 'price_SOFTCOVER_ID', // TODO: Replace with actual Stripe price ID
-  hardcover: 'price_HARDCOVER_ID', // TODO: Replace with actual Stripe price ID
+  softcover: 'price_1StV4RGzopxGCjLeSMLjBk7X',
+  hardcover: 'price_1StV7GGzopxGCjLeYMsB3w8T',
 }
 
 const corsHeaders = {

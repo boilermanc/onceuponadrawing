@@ -122,6 +122,33 @@ interface LuluTestResult {
   details?: string;
 }
 
+interface LuluWebhook {
+  id: number;
+  url: string;
+  topics: string[];
+  is_active: boolean;
+  created_at?: string;
+}
+
+interface WebhookSubmission {
+  id: number;
+  webhook_id: number;
+  topic: string;
+  response_status_code?: number;
+  created_at: string;
+}
+
+interface WebhookManagementResult {
+  success: boolean;
+  environment?: string;
+  apiUrl?: string;
+  webhooks?: LuluWebhook[];
+  recentSubmissions?: WebhookSubmission[];
+  webhook?: LuluWebhook;
+  message?: string;
+  error?: string;
+}
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({
   userEmail,
   isAuthenticated,
@@ -153,6 +180,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Lulu API test state
   const [luluTestLoading, setLuluTestLoading] = useState(false);
   const [luluTestResult, setLuluTestResult] = useState<LuluTestResult | null>(null);
+
+  // Webhook management state
+  const [webhookLoading, setWebhookLoading] = useState(false);
+  const [webhookData, setWebhookData] = useState<WebhookManagementResult | null>(null);
+  const [webhookActionLoading, setWebhookActionLoading] = useState<string | null>(null);
+  const [webhookMessage, setWebhookMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Preview state
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
@@ -466,6 +499,133 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
     } finally {
       setLuluTestLoading(false);
+    }
+  };
+
+  // Webhook management functions
+  const fetchWebhooks = async () => {
+    setWebhookLoading(true);
+    setWebhookMessage(null);
+    try {
+      const response = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/manage-lulu-webhooks`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const data = await response.json();
+      setWebhookData(data as WebhookManagementResult);
+    } catch (err: unknown) {
+      setWebhookData({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setWebhookLoading(false);
+    }
+  };
+
+  const registerWebhook = async () => {
+    setWebhookActionLoading('register');
+    setWebhookMessage(null);
+    try {
+      // Build the callback URL for our webhook endpoint
+      const callbackUrl = `${process.env.SUPABASE_URL}/functions/v1/lulu-webhook`;
+
+      const response = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/manage-lulu-webhooks`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'register',
+            callback_url: callbackUrl,
+          }),
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setWebhookMessage({ type: 'success', text: 'Webhook registered successfully!' });
+        fetchWebhooks(); // Refresh the list
+      } else {
+        setWebhookMessage({ type: 'error', text: data.error || 'Failed to register webhook' });
+      }
+    } catch (err: unknown) {
+      setWebhookMessage({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setWebhookActionLoading(null);
+    }
+  };
+
+  const testWebhook = async (webhookId: number) => {
+    setWebhookActionLoading(`test-${webhookId}`);
+    setWebhookMessage(null);
+    try {
+      const response = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/manage-lulu-webhooks`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'test',
+            webhook_id: webhookId,
+          }),
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setWebhookMessage({ type: 'success', text: 'Test webhook sent! Check submissions below.' });
+        // Refresh to show new submission
+        setTimeout(() => fetchWebhooks(), 2000);
+      } else {
+        setWebhookMessage({ type: 'error', text: data.error || 'Failed to send test webhook' });
+      }
+    } catch (err: unknown) {
+      setWebhookMessage({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setWebhookActionLoading(null);
+    }
+  };
+
+  const deleteWebhook = async (webhookId: number) => {
+    if (!confirm('Are you sure you want to delete this webhook?')) return;
+
+    setWebhookActionLoading(`delete-${webhookId}`);
+    setWebhookMessage(null);
+    try {
+      const response = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/manage-lulu-webhooks`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            webhook_id: webhookId,
+          }),
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setWebhookMessage({ type: 'success', text: 'Webhook deleted successfully' });
+        fetchWebhooks(); // Refresh the list
+      } else {
+        setWebhookMessage({ type: 'error', text: data.error || 'Failed to delete webhook' });
+      }
+    } catch (err: unknown) {
+      setWebhookMessage({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setWebhookActionLoading(null);
     }
   };
 
@@ -1695,6 +1855,214 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="text-center py-8 text-blue-slate">
                     <div className="text-4xl mb-3">🔌</div>
                     <p>Click the button above to test the Lulu API connection</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Lulu Webhooks Management */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200">
+                <h2 className="font-bold text-gunmetal">Lulu Webhooks</h2>
+                <p className="text-sm text-blue-slate mt-1">
+                  Manage webhooks to receive order status updates from Lulu
+                </p>
+              </div>
+
+              <div className="p-6">
+                {/* Message Display */}
+                {webhookMessage && (
+                  <div
+                    className={`mb-6 p-4 rounded-xl border-2 ${
+                      webhookMessage.type === 'success'
+                        ? 'bg-green-50 border-green-200 text-green-700'
+                        : 'bg-red-50 border-red-200 text-red-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{webhookMessage.type === 'success' ? '✅' : '❌'}</span>
+                      <span className="font-bold">{webhookMessage.text}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 mb-6">
+                  <Button
+                    onClick={fetchWebhooks}
+                    disabled={webhookLoading}
+                    isLoading={webhookLoading}
+                    variant="ghost"
+                  >
+                    {webhookLoading ? 'Loading...' : 'Refresh Webhooks'}
+                  </Button>
+                  <Button
+                    onClick={registerWebhook}
+                    disabled={webhookActionLoading === 'register'}
+                    isLoading={webhookActionLoading === 'register'}
+                  >
+                    {webhookActionLoading === 'register' ? 'Registering...' : 'Register New Webhook'}
+                  </Button>
+                </div>
+
+                {/* Webhook Data Display */}
+                {webhookData && (
+                  <div className="space-y-6">
+                    {/* Environment Info */}
+                    {webhookData.environment && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-blue-slate uppercase">Environment:</span>
+                        <span
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold ${
+                            webhookData.environment === 'production'
+                              ? 'bg-red-100 text-red-700 border-2 border-red-300'
+                              : 'bg-amber-100 text-amber-700 border-2 border-amber-300'
+                          }`}
+                        >
+                          {webhookData.environment === 'production' ? (
+                            <>
+                              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                              PRODUCTION
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                              SANDBOX
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Registered Webhooks */}
+                    <div>
+                      <h3 className="text-sm font-bold text-blue-slate uppercase mb-3">Registered Webhooks</h3>
+                      {webhookData.webhooks && webhookData.webhooks.length > 0 ? (
+                        <div className="space-y-3">
+                          {webhookData.webhooks.map((webhook) => (
+                            <div
+                              key={webhook.id}
+                              className={`p-4 rounded-xl border-2 ${
+                                webhook.is_active
+                                  ? 'bg-green-50 border-green-200'
+                                  : 'bg-slate-50 border-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className={`w-2 h-2 rounded-full ${webhook.is_active ? 'bg-green-500' : 'bg-slate-400'}`} />
+                                    <span className="font-bold text-gunmetal">Webhook #{webhook.id}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                      webhook.is_active
+                                        ? 'bg-green-200 text-green-700'
+                                        : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                      {webhook.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs font-mono text-blue-slate break-all">{webhook.url}</p>
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {webhook.topics.map((topic) => (
+                                      <span
+                                        key={topic}
+                                        className="text-xs px-2 py-0.5 bg-pacific-cyan/10 text-pacific-cyan rounded"
+                                      >
+                                        {topic}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => testWebhook(webhook.id)}
+                                    disabled={webhookActionLoading === `test-${webhook.id}`}
+                                    className="px-3 py-1.5 text-xs font-bold bg-pacific-cyan text-white rounded-lg hover:bg-pacific-cyan/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {webhookActionLoading === `test-${webhook.id}` ? '...' : 'Test'}
+                                  </button>
+                                  <button
+                                    onClick={() => deleteWebhook(webhook.id)}
+                                    disabled={webhookActionLoading === `delete-${webhook.id}`}
+                                    className="px-3 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {webhookActionLoading === `delete-${webhook.id}` ? '...' : 'Delete'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                          <div className="text-4xl mb-3">📭</div>
+                          <p className="text-blue-slate mb-4">No webhooks registered yet</p>
+                          <p className="text-xs text-silver">
+                            Click "Register New Webhook" to create one
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recent Submissions */}
+                    {webhookData.recentSubmissions && webhookData.recentSubmissions.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-bold text-blue-slate uppercase mb-3">Recent Webhook Submissions</h3>
+                        <div className="bg-slate-50 rounded-xl overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-slate-100">
+                              <tr>
+                                <th className="text-left px-4 py-2 text-xs font-bold text-blue-slate">Time</th>
+                                <th className="text-left px-4 py-2 text-xs font-bold text-blue-slate">Topic</th>
+                                <th className="text-left px-4 py-2 text-xs font-bold text-blue-slate">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                              {webhookData.recentSubmissions.map((sub) => (
+                                <tr key={sub.id}>
+                                  <td className="px-4 py-2 text-xs text-gunmetal">
+                                    {formatDate(sub.created_at)}
+                                  </td>
+                                  <td className="px-4 py-2 text-xs font-mono text-pacific-cyan">
+                                    {sub.topic}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span
+                                      className={`text-xs px-2 py-0.5 rounded-full ${
+                                        sub.response_status_code === 200
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-red-100 text-red-700'
+                                      }`}
+                                    >
+                                      {sub.response_status_code || 'Pending'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error Display */}
+                    {webhookData.error && (
+                      <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">❌</span>
+                          <span className="font-bold text-red-700">Error</span>
+                        </div>
+                        <p className="text-sm text-red-600">{webhookData.error}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* No data yet */}
+                {!webhookData && !webhookLoading && (
+                  <div className="text-center py-8 text-blue-slate">
+                    <div className="text-4xl mb-3">🔔</div>
+                    <p>Click "Refresh Webhooks" to view registered webhooks</p>
                   </div>
                 )}
               </div>
