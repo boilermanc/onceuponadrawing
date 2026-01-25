@@ -1,8 +1,267 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Button from './ui/Button';
 
 export type InfoPageType = 'about' | 'contact' | 'terms' | 'privacy';
+
+interface FAQItem {
+  category: string;
+  question: string;
+  answer: string;
+}
+
+const FAQS: FAQItem[] = [
+  {
+    category: 'Getting Started',
+    question: 'How does Once Upon a Drawing work?',
+    answer: 'Simply upload a photo of your child\'s artwork, and our AI magic transforms it into an animated character with a personalized storybook. The whole process takes just a few minutes!'
+  },
+  {
+    category: 'Books & Printing',
+    question: 'What quality are the printed books?',
+    answer: 'Our archival hardcover books are printed on premium, acid-free matte paper designed to last for generations. Each book is professionally bound and makes a perfect keepsake.'
+  },
+  {
+    category: 'Account & Credits',
+    question: 'How do credits work?',
+    answer: 'Each creation uses one credit. New accounts start with free credits to try the magic. You can purchase additional credit packs anytime from your dashboard.'
+  },
+  {
+    category: 'Privacy & Safety',
+    question: 'Is my child\'s artwork safe?',
+    answer: 'Absolutely. We never sell your data or use your artwork to train public AI models. All uploads are encrypted and you retain full ownership of your original artwork.'
+  },
+  {
+    category: 'Shipping',
+    question: 'How long does shipping take?',
+    answer: 'Hardcover books are custom-printed and typically ship within 5-7 business days. Delivery times vary by location but usually arrive within 2-3 weeks of ordering.'
+  }
+];
+
+const SUPPORT_EMAIL = 'team@onceuponadrawing.com';
+
+// FAQ Accordion Component
+const FaqSection: React.FC = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-8">
+        <h2 className="text-3xl font-black text-gunmetal mb-2">Frequently Asked Questions</h2>
+        <p className="text-blue-slate font-medium">Quick answers to common questions from our artists.</p>
+      </div>
+
+      <div className="space-y-3">
+        {FAQS.map((faq, idx) => (
+          <div
+            key={idx}
+            className={`group bg-white rounded-[2rem] border-2 transition-all duration-300 ${
+              openIndex === idx
+              ? 'border-pacific-cyan/30 shadow-xl shadow-pacific-cyan/10'
+              : 'border-silver/30 hover:border-pacific-cyan/20 shadow-sm'
+            }`}
+          >
+            <button
+              onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+              className="w-full flex items-center justify-between px-8 py-6 text-left"
+            >
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-pacific-cyan">{faq.category}</span>
+                <p className={`font-black transition-colors ${openIndex === idx ? 'text-pacific-cyan' : 'text-gunmetal'}`}>
+                  {faq.question}
+                </p>
+              </div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all flex-shrink-0 ml-4 ${
+                openIndex === idx ? 'bg-pacific-cyan text-white rotate-180' : 'bg-off-white text-blue-slate group-hover:bg-pacific-cyan/10'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </button>
+            <div className={`overflow-hidden transition-all duration-300 ${openIndex === idx ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="px-8 pb-8 text-blue-slate leading-relaxed border-t border-pacific-cyan/10 pt-4 mt-2">
+                {faq.answer}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Support Form Component
+const SupportForm: React.FC = () => {
+  const [submitted, setSubmitted] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', subject: 'Technical Support', message: '' });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // In production, this would send to an API
+    console.log('Form data:', formData);
+    setSubmitted(true);
+  };
+
+  if (submitted) {
+    return (
+      <div className="bg-pacific-cyan/5 border-2 border-pacific-cyan/20 p-12 rounded-[2.5rem] text-center space-y-4">
+        <div className="w-16 h-16 bg-pacific-cyan text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-pacific-cyan/30">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+        </div>
+        <h3 className="text-2xl font-black text-gunmetal">Masterpiece Received!</h3>
+        <p className="text-blue-slate max-w-md mx-auto">
+          Thanks for reaching out, <span className="font-bold text-gunmetal">{formData.name}</span>. Our team has received your message and we'll get back to you at <span className="font-bold text-gunmetal">{formData.email}</span> within 24 hours.
+        </p>
+        <button
+          onClick={() => {
+            setSubmitted(false);
+            setFormData({ name: '', email: '', subject: 'Technical Support', message: '' });
+          }}
+          className="text-pacific-cyan font-black hover:underline mt-4"
+        >
+          Send another message
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl shadow-gunmetal/5 border-2 border-silver/20">
+      <div className="mb-10">
+        <h2 className="text-3xl font-black text-gunmetal mb-2">Send us a Message</h2>
+        <p className="text-blue-slate font-medium">Have a specific question? Fill out the form and we'll help you out.</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-black text-gunmetal">Full Name</label>
+            <input
+              required
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full bg-off-white border-2 border-silver/30 rounded-2xl px-5 py-4 text-gunmetal focus:ring-4 focus:ring-pacific-cyan/20 focus:border-pacific-cyan transition-all outline-none font-medium"
+              placeholder="Your name"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-black text-gunmetal">Email Address</label>
+            <input
+              required
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full bg-off-white border-2 border-silver/30 rounded-2xl px-5 py-4 text-gunmetal focus:ring-4 focus:ring-pacific-cyan/20 focus:border-pacific-cyan transition-all outline-none font-medium"
+              placeholder="you@example.com"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-black text-gunmetal">Subject</label>
+          <select
+            value={formData.subject}
+            onChange={(e) => setFormData({...formData, subject: e.target.value})}
+            className="w-full bg-off-white border-2 border-silver/30 rounded-2xl px-5 py-4 text-gunmetal focus:ring-4 focus:ring-pacific-cyan/20 focus:border-pacific-cyan transition-all outline-none appearance-none font-medium cursor-pointer"
+          >
+            <option>Technical Support</option>
+            <option>Billing Question</option>
+            <option>Order Status</option>
+            <option>Feature Request</option>
+            <option>Collaborations</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-black text-gunmetal">Message</label>
+          <textarea
+            required
+            rows={5}
+            value={formData.message}
+            onChange={(e) => setFormData({...formData, message: e.target.value})}
+            className="w-full bg-off-white border-2 border-silver/30 rounded-2xl px-5 py-4 text-gunmetal focus:ring-4 focus:ring-pacific-cyan/20 focus:border-pacific-cyan transition-all outline-none resize-none font-medium"
+            placeholder="Tell us everything..."
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-pacific-cyan text-white font-black py-5 rounded-2xl shadow-lg shadow-pacific-cyan/30 hover:bg-pacific-cyan/90 hover:-translate-y-0.5 transition-all active:translate-y-0"
+        >
+          Send Message
+        </button>
+
+        <p className="text-center text-sm text-blue-slate">
+          Prefer direct email? Reach us at <a href={`mailto:${SUPPORT_EMAIL}`} className="text-pacific-cyan font-black hover:underline">{SUPPORT_EMAIL}</a>
+        </p>
+      </form>
+    </div>
+  );
+};
+
+// Main Contact Page Component
+const ContactPage: React.FC = () => {
+  return (
+    <div className="max-w-6xl mx-auto space-y-16 pb-20">
+      {/* Hero Section */}
+      <div className="text-center space-y-6 pt-8">
+        <span className="inline-block px-5 py-2 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-xs font-black uppercase tracking-widest">Support Center</span>
+        <h1 className="text-5xl md:text-7xl font-black text-gunmetal tracking-tighter leading-tight">
+          How can we help you <br className="hidden md:block"/>
+          <span className="text-pacific-cyan italic font-serif">create magic?</span>
+        </h1>
+        <p className="text-lg text-blue-slate max-w-2xl mx-auto leading-relaxed font-medium">
+          Whether you're troubleshooting a technical hitch or looking for tips on your next storybook, our team is here to help.
+        </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+          <a href="#faqs" className="bg-white text-gunmetal border-2 border-silver/30 px-8 py-4 rounded-2xl font-black shadow-sm hover:shadow-md hover:border-pacific-cyan/30 transition-all">
+            Browse FAQs
+          </a>
+          <a href="#contact" className="bg-pacific-cyan text-white px-8 py-4 rounded-2xl font-black shadow-lg shadow-pacific-cyan/30 hover:bg-pacific-cyan/90 transition-all">
+            Contact Us
+          </a>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+        {/* Left Column - FAQs */}
+        <div id="faqs" className="scroll-mt-32">
+          <FaqSection />
+
+          <div className="mt-12 p-8 bg-soft-gold/5 border-2 border-dashed border-soft-gold/30 rounded-[2rem] text-blue-slate text-center">
+            <p className="text-sm italic font-medium">"Every child is an artist. The problem is how to remain an artist once he grows up." — Pablo Picasso</p>
+          </div>
+        </div>
+
+        {/* Right Column - Contact Form */}
+        <div id="contact" className="scroll-mt-32">
+          <SupportForm />
+
+          {/* Info Cards */}
+          <div className="mt-8 grid grid-cols-2 gap-4">
+            <div className="bg-white p-6 rounded-[2rem] border-2 border-silver/20 shadow-sm">
+              <div className="w-10 h-10 bg-pacific-cyan/10 text-pacific-cyan rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              </div>
+              <h4 className="font-black text-gunmetal mb-1">Email Support</h4>
+              <p className="text-xs text-blue-slate font-medium">{SUPPORT_EMAIL}</p>
+            </div>
+            <div className="bg-white p-6 rounded-[2rem] border-2 border-silver/20 shadow-sm">
+              <div className="w-10 h-10 bg-soft-gold/10 text-soft-gold rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h4 className="font-black text-gunmetal mb-1">Response Time</h4>
+              <p className="text-xs text-blue-slate font-medium">Usually under 24 hours</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface InfoPagesProps {
   type: InfoPageType;
@@ -88,57 +347,7 @@ const InfoPages: React.FC<InfoPagesProps> = ({ type, onClose }) => {
           </div>
         );
       case 'contact':
-        return (
-          <div className="max-w-4xl mx-auto text-center space-y-16 pb-20">
-            <div className="relative inline-block mt-8">
-               <span className="text-9xl drop-shadow-2xl animate-pulse">📬</span>
-               <div className="absolute -top-4 -right-4 bg-pacific-cyan text-white text-xs font-black px-4 py-2 rounded-full rotate-12">New Mail!</div>
-            </div>
-            
-            <div className="space-y-4">
-              <h2 className="text-5xl md:text-7xl font-black text-gunmetal tracking-tighter">Artistic <br/>Correspondence</h2>
-              <p className="text-blue-slate font-bold uppercase tracking-[0.3em]">The pigeon is ready for your message</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-               {[
-                 { 
-                   tag: 'General', 
-                   title: 'The Studio Team', 
-                   icon: '👋', 
-                   link: 'team@onceuponadrawing.com', 
-                   color: 'border-silver',
-                   hover: 'hover:border-pacific-cyan'
-                 },
-                 { 
-                   tag: 'Urgent', 
-                   title: 'Magic Support', 
-                   icon: '🔥', 
-                   link: 'team@onceuponadrawing.com', 
-                   color: 'border-soft-gold',
-                   hover: 'hover:bg-soft-gold/5'
-                 }
-               ].map((card, i) => (
-                 <div key={i} className={`group p-10 bg-white border-4 ${card.color} ${card.hover} rounded-[3rem] shadow-xl transition-all flex flex-col items-center animate-in fade-in slide-in-from-bottom-${4*(i+1)} duration-500`}>
-                    <div className="text-xs font-black uppercase tracking-widest text-silver mb-6">{card.tag}</div>
-                    <div className="text-5xl mb-4 group-hover:rotate-12 transition-transform">{card.icon}</div>
-                    <h4 className="font-black text-gunmetal mb-2 text-xl">{card.title}</h4>
-                    <a href={`mailto:${card.link}`} className="text-xs font-black text-blue-slate break-all hover:text-pacific-cyan transition-colors">{card.link}</a>
-                 </div>
-               ))}
-            </div>
-
-            <div className="bg-white/50 backdrop-blur-sm p-12 rounded-[4rem] border-2 border-dashed border-silver text-center">
-               <h4 className="text-2xl font-black text-gunmetal mb-2">Digital HQ</h4>
-               <p className="text-blue-slate font-medium"> We are a globally distributed studio of dreamers.</p>
-               <div className="flex gap-4 mt-8 justify-center">
-                  {['📸', '🐦', '📘', '🎨'].map(emoji => (
-                    <div key={emoji} className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-lg cursor-pointer hover:-translate-y-2 transition-transform border border-silver/20">{emoji}</div>
-                  ))}
-               </div>
-            </div>
-          </div>
-        );
+        return <ContactPage />;
       case 'terms':
       case 'privacy':
         const isPrivacy = type === 'privacy';
