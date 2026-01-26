@@ -33,6 +33,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
     flowType: 'pkce',
+    lockType: 'mem',
+    debug: true,
   },
 });
 
