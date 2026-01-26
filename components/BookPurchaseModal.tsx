@@ -438,6 +438,9 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
               postalCode: shippingAddress.postalCode,
               countryCode: shippingAddress.countryCode,
             },
+            // Stripe redirect URLs - constructed from current origin
+            successUrl: `${window.location.origin}/order-success`,
+            cancelUrl: `${window.location.origin}/order-cancelled`,
           }),
         }
       );

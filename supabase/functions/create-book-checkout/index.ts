@@ -1,7 +1,7 @@
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://onceuponadrawing.com'
+const DEFAULT_BASE_URL = 'https://onceuponadrawing.com'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,6 +82,10 @@ interface CreateBookCheckoutRequest {
   // Pricing (will be calculated if not provided)
   priceId?: string // Optional - we can create dynamic price
   bookCost?: number // Book production cost in cents
+
+  // Stripe redirect URLs (from frontend)
+  successUrl?: string
+  cancelUrl?: string
 }
 
 interface StripePrice {
@@ -328,11 +332,17 @@ Deno.serve(async (req) => {
 
     console.log('[create-book-checkout] Total amount:', totalAmount, 'cents')
 
+    // Build redirect URLs - use frontend-provided URLs or fallback to defaults
+    const successUrl = body.successUrl
+      ? `${body.successUrl}?session_id={CHECKOUT_SESSION_ID}`
+      : `${DEFAULT_BASE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`
+    const cancelUrl = body.cancelUrl || `${DEFAULT_BASE_URL}/order-cancelled`
+
     // If priceId provided, use it; otherwise create inline price
     let sessionParams: any = {
       mode: 'payment',
-      success_url: `${APP_BASE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_BASE_URL}/order-cancelled`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       customer_email: body.userEmail,
     }
 
