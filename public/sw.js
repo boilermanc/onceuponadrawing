@@ -16,6 +16,9 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests for same-origin static assets
   if (event.request.method !== 'GET') return;
 
+  // Bypass Supabase auth entirely (avoid SW interference)
+  if (event.request.url.includes('supabase.co/auth')) return;
+
   const url = new URL(event.request.url);
 
   // Don't intercept API calls or external requests

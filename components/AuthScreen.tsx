@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import Button from './ui/Button';
-import { supabase, getSupabaseAnonKey, getSupabaseUrl } from '../services/supabaseClient';
+import { supabase } from '../services/supabaseClient';
 import { getProfile } from '../services/supabaseService';
 import { useToast } from './ui/Toast';
 import InfoPages, { InfoPageType } from './InfoPages';
