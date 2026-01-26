@@ -96,49 +96,45 @@ const App: React.FC = () => {
     };
   };
 
-  // Supabase Auth Listener with visibility refresh support
+  // Supabase Auth Listener - set up ONCE on mount, stable across tab visibility changes
   useEffect(() => {
-    const signal = getSignal();
+    let isMounted = true;
 
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         console.log('[Root] initAuth session:', session);
-        if (session?.user) {
+        if (session?.user && isMounted) {
           let profile = null;
           try {
-            profile = await getProfile(session.user.id, signal);
+            profile = await getProfile(session.user.id);
           } catch (e) {
             console.error('[Root] initAuth profile fetch failed:', e);
           }
+          if (!isMounted) return;
           const user = buildUser(session.user, profile);
-          setState(prev => ({
-            ...prev,
-            user,
-          }));
-          // Fetch credit balance on login
+          setState(prev => ({ ...prev, user }));
+
+          // Fetch credit balance
           try {
-            const balance = await getCreditBalance(session.user.id, signal);
-            setCreditBalance(balance);
+            const balance = await getCreditBalance(session.user.id);
+            if (isMounted) setCreditBalance(balance);
           } catch (err) {
-            if (!isAbortError(err)) {
-              console.error('Failed to fetch credit balance:', err);
-            }
+            console.error('Failed to fetch credit balance:', err);
           }
         }
       } catch (err) {
-        if (!isAbortError(err)) {
-          console.error('Failed to init auth:', err);
-        }
+        console.error('Failed to init auth:', err);
       }
     };
 
     initAuth();
 
-    // Auth state changes should NOT use the signal - they need to always work
-    // regardless of tab visibility state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[Root] onAuthStateChange session:', session);
+    // Single auth listener that handles all auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Root] onAuthStateChange event:', event, 'session:', !!session);
+      if (!isMounted) return;
+
       if (session?.user) {
         try {
           let profile = null;
@@ -147,14 +143,13 @@ const App: React.FC = () => {
           } catch (e) {
             console.error('[Root] onAuthStateChange profile fetch failed:', e);
           }
+          if (!isMounted) return;
           const user = buildUser(session.user, profile);
-          setState(prev => ({
-            ...prev,
-            user,
-          }));
-          // Fetch credit balance on auth state change
+          setState(prev => ({ ...prev, user }));
+
+          // Fetch credit balance
           const balance = await getCreditBalance(session.user.id);
-          setCreditBalance(balance);
+          if (isMounted) setCreditBalance(balance);
         } catch (err) {
           console.error('Failed to fetch profile/credits:', err);
         }
@@ -164,8 +159,20 @@ const App: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, [refreshKey, getSignal]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // Empty deps - set up once on mount
+
+  // Separate effect to refresh credit balance on tab visibility
+  useEffect(() => {
+    if (refreshKey > 0 && state.user) {
+      getCreditBalance(state.user.id)
+        .then(balance => setCreditBalance(balance))
+        .catch(err => console.error('Failed to refresh credit balance:', err));
+    }
+  }, [refreshKey, state.user?.id]);
 
   // Restore draft on app load
   useEffect(() => {
