@@ -25,6 +25,13 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api')) return;
 
+  // Don't cache navigation requests (page loads) - always fetch fresh
+  // This ensures redirects from Stripe/external sites work properly
+  if (event.request.mode === 'navigate') return;
+
+  // Don't cache requests with query params (like session_id)
+  if (url.search) return;
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);

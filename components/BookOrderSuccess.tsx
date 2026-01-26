@@ -164,10 +164,12 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
         {/* Success Icon */}
         <div className="text-center mb-8">
           <div className="relative inline-block">
-            <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-soft-gold/30 to-pacific-cyan/30 rounded-full flex items-center justify-center mx-auto animate-pulse">
-              <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-xl">
-                <span className="text-4xl md:text-5xl">{isHardcover ? '📖' : '📱'}</span>
-              </div>
+            <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-soft-gold/30 to-pacific-cyan/30 rounded-full flex items-center justify-center mx-auto">
+              <img
+                src="/once_upon_a_drawing.png"
+                alt="Once Upon a Drawing"
+                className="w-20 h-20 md:w-24 md:h-24 object-contain"
+              />
             </div>
             <div className="absolute -top-1 -right-1 w-8 h-8 md:w-10 md:h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
               <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
