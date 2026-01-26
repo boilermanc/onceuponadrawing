@@ -83,55 +83,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           throw new Error(authResult.error_description || authResult.msg || 'Login failed');
         }
 
-        // Manually set the session in Supabase client
-        const { data, error } = await supabase.auth.setSession({
+        // Store tokens directly in localStorage (bypass Supabase client which hangs)
+        const storageKey = `sb-cdhymstkzhlxcucbzipr-auth-token`;
+        localStorage.setItem(storageKey, JSON.stringify({
           access_token: authResult.access_token,
           refresh_token: authResult.refresh_token,
-        });
-        console.log('[Auth] Session set, error:', error?.message || 'none');
+          expires_at: Math.floor(Date.now() / 1000) + authResult.expires_in,
+          token_type: 'bearer',
+          user: authResult.user,
+        }));
+        console.log('[Auth] Session stored in localStorage, reloading...');
 
-        if (error) throw error;
-        console.log('[Auth] Sign in successful, fetching profile...');
-
-        // Use AbortController with timeout to prevent infinite hang
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-        let profile;
-        try {
-          profile = await getProfile(data.user.id, controller.signal);
-        } catch (profileErr: any) {
-          // If profile fetch times out or fails, continue with auth metadata fallback
-          console.warn('[Auth] Profile fetch failed, using fallback:', profileErr.message);
-          profile = null;
-        } finally {
-          clearTimeout(timeoutId);
-        }
-
-        if (profile) {
-          console.log('[Auth] Profile found, completing login');
-          onAuthenticated({
-            id: profile.id,
-            firstName: profile.first_name,
-            lastName: profile.last_name,
-            email: profile.email,
-            subscribed: profile.subscribed,
-            createdAt: profile.created_at
-          }, false);
-        } else {
-          // Profile doesn't exist - user may have been created before migrations
-          // Use auth metadata as fallback
-          console.log('[Auth] No profile found, using auth metadata fallback');
-          const meta = data.user.user_metadata || {};
-          onAuthenticated({
-            id: data.user.id,
-            firstName: meta.first_name || '',
-            lastName: meta.last_name || '',
-            email: data.user.email || '',
-            subscribed: false,
-            createdAt: data.user.created_at || new Date().toISOString()
-          }, false);
-        }
+        // Reload to let Supabase client pick up the stored session
+        window.location.href = '/';
       } else {
         // Supabase SignUp
         const termsAcceptedAt = new Date().toISOString();
