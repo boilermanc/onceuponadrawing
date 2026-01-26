@@ -51,11 +51,28 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
     try {
       if (isLogin) {
+        // Clear any stale Supabase auth state from localStorage to prevent hanging
+        const keysToRemove = Object.keys(localStorage).filter(key =>
+          key.startsWith('sb-') && key.includes('-auth-token')
+        );
+        if (keysToRemove.length > 0) {
+          console.log('[Auth] Clearing stale auth tokens:', keysToRemove.length);
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+        }
+
         console.log('[Auth] Calling signInWithPassword...');
-        const { data, error } = await supabase.auth.signInWithPassword({
+
+        // Wrap signInWithPassword in a timeout to prevent hanging
+        const signInPromise = supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Login timed out. Please try again.')), 15000);
+        });
+
+        const { data, error } = await Promise.race([signInPromise, timeoutPromise]);
         console.log('[Auth] signInWithPassword returned, error:', error?.message || 'none');
 
         if (error) throw error;
