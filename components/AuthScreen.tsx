@@ -60,42 +60,35 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           keysToRemove.forEach(key => localStorage.removeItem(key));
         }
 
-        console.log('[Auth] Calling signInWithPassword via direct fetch...');
+        console.log('[Auth] Signing in with Supabase client...');
 
-        // Use direct fetch to Supabase auth API to avoid client-side Promise hanging
-        const supabaseUrl = 'https://cdhymstkzhlxcucbzipr.supabase.co';
-        const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': process.env.SUPABASE_ANON_KEY || '',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
+        // Use Supabase client to handle session storage and events
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
         });
 
-        const authResult = await response.json();
-        console.log('[Auth] Direct fetch returned, status:', response.status);
+        if (error) throw error;
+        if (!data.user) throw new Error('Login failed: no user returned');
 
-        if (!response.ok) {
-          throw new Error(authResult.error_description || authResult.msg || 'Login failed');
+        // Fetch profile for consistent casing/subscription flags
+        let profile = null;
+        try {
+          profile = await getProfile(data.user.id);
+        } catch (profileErr) {
+          console.error('[Auth] Profile fetch failed:', profileErr);
         }
 
-        // Store tokens directly in localStorage (bypass Supabase client which hangs)
-        const storageKey = `sb-cdhymstkzhlxcucbzipr-auth-token`;
-        localStorage.setItem(storageKey, JSON.stringify({
-          access_token: authResult.access_token,
-          refresh_token: authResult.refresh_token,
-          expires_at: Math.floor(Date.now() / 1000) + authResult.expires_in,
-          token_type: 'bearer',
-          user: authResult.user,
-        }));
-        console.log('[Auth] Session stored in localStorage, reloading...');
+        const subscribed = (profile as any)?.subscribed ?? ((profile as any)?.subscription_tier === 'premium');
 
-        // Reload to let Supabase client pick up the stored session
-        window.location.href = '/';
+        onAuthenticated({
+          id: data.user.id,
+          firstName: (profile as any)?.first_name || (data.user as any)?.user_metadata?.first_name || '',
+          lastName: (profile as any)?.last_name || (data.user as any)?.user_metadata?.last_name || '',
+          email: (profile as any)?.email || data.user.email || formData.email,
+          subscribed: !!subscribed,
+          createdAt: (profile as any)?.created_at || (data.user as any)?.created_at || new Date().toISOString()
+        }, false);
       } else {
         // Supabase SignUp
         const termsAcceptedAt = new Date().toISOString();
@@ -141,7 +134,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
       } else {
         showToast('error', 'Authentication Error', errorMessage || 'Something went wrong. Please try again.');
       }
-      console.error('[Auth] Error:', errorMessage);
+      console.error('[Auth] Error:', err);
     } finally {
       setIsLoading(false);
     }
