@@ -78,6 +78,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
         // Attempt normal client login, then fall back to manual token exchange + setSession if it hangs or fails
         let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'] | null = null;
+        let sessionUserId: string | null = null;
         try {
           const result = await withTimeout(
             supabase.auth.signInWithPassword({
@@ -123,14 +124,27 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
           if (setSessionError) throw setSessionError;
           data = setSessionData;
+          sessionUserId = authResult.user?.id || null;
         }
 
         if (!data?.user) throw new Error('Login failed: no user returned');
 
+        // Verify session is hydrated
+        const sessionCheck = await withTimeout(
+          supabase.auth.getSession(),
+          4000,
+          'Supabase getSession after login'
+        );
+        const hydratedUserId = sessionCheck.data.session?.user?.id || sessionUserId;
+        if (!hydratedUserId) {
+          console.error('[Auth] Session hydration failed', { sessionCheck });
+          throw new Error('Login failed: session not hydrated');
+        }
+
         // Fetch profile for consistent casing/subscription flags
         let profile = null;
         try {
-          profile = await getProfile(data.user.id);
+          profile = await getProfile(hydratedUserId);
         } catch (profileErr) {
           console.error('[Auth] Profile fetch failed:', profileErr);
         }
@@ -138,13 +152,14 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
         const subscribed = (profile as any)?.subscribed ?? ((profile as any)?.subscription_tier === 'premium');
 
         onAuthenticated({
-          id: data.user.id,
+          id: hydratedUserId,
           firstName: (profile as any)?.first_name || (data.user as any)?.user_metadata?.first_name || '',
           lastName: (profile as any)?.last_name || (data.user as any)?.user_metadata?.last_name || '',
           email: (profile as any)?.email || data.user.email || formData.email,
           subscribed: !!subscribed,
           createdAt: (profile as any)?.created_at || (data.user as any)?.created_at || new Date().toISOString()
         }, false);
+        console.log('[Auth] Login success; onAuthenticated dispatched', { userId: hydratedUserId });
       } else {
         // Supabase SignUp
         const termsAcceptedAt = new Date().toISOString();
