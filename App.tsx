@@ -880,14 +880,16 @@ const App: React.FC = () => {
 
       {/* Book Order Success */}
       {showBookOrderSuccess && bookOrderSessionId && (
-        <BookOrderSuccess
-          sessionId={bookOrderSessionId}
-          onContinue={() => {
-            setShowBookOrderSuccess(false);
-            setBookOrderSessionId(null);
-            setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
-          }}
-        />
+        <div className="fixed inset-0 z-50 bg-off-white overflow-auto">
+          <BookOrderSuccess
+            sessionId={bookOrderSessionId}
+            onContinue={() => {
+              setShowBookOrderSuccess(false);
+              setBookOrderSessionId(null);
+              setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+            }}
+          />
+        </div>
       )}
     </div>
   );
