@@ -16,6 +16,16 @@ interface ShippingAddress {
   email?: string;
 }
 
+interface BillingAddress {
+  name: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  stateCode: string;
+  postalCode: string;
+  countryCode: string;
+}
+
 interface ShippingOption {
   shippingOptionId: string;
   shippingOptionName: string;
@@ -25,6 +35,61 @@ interface ShippingOption {
   currency: string;
   deliveryDays: string;
 }
+
+const US_STATES = [
+  { code: '', name: 'Select State' },
+  { code: 'AL', name: 'Alabama' },
+  { code: 'AK', name: 'Alaska' },
+  { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' },
+  { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' },
+  { code: 'DE', name: 'Delaware' },
+  { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' },
+  { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' },
+  { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' },
+  { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' },
+  { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' },
+  { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' },
+  { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' },
+  { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' },
+  { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' },
+  { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' },
+  { code: 'PA', name: 'Pennsylvania' },
+  { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' },
+  { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' },
+  { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' },
+  { code: 'WY', name: 'Wyoming' },
+  { code: 'DC', name: 'Washington DC' },
+];
 
 interface BookPurchaseModalProps {
   isOpen: boolean;
@@ -38,6 +103,7 @@ interface BookPurchaseModalProps {
   onPurchase?: (creationId: string) => void;
   userId?: string;
   userEmail?: string;
+  isGift?: boolean;
 }
 
 // Book Type Selection Modal (appears first)
@@ -151,13 +217,14 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
   onPurchase,
   userId,
   userEmail,
+  isGift = false,
 }) => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [selectedBookType, setSelectedBookType] = useState<BookType | null>(null);
   const [orderStep, setOrderStep] = useState<OrderStep>('SELECT_TYPE');
   
-  // Shipping state
+  // Shipping state (recipient address for gifts)
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     name: '',
     street1: '',
@@ -169,7 +236,19 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
     phoneNumber: '',
     email: userEmail || '',
   });
-  
+
+  // Billing address state (purchaser address for gifts)
+  const [billingAddress, setBillingAddress] = useState<BillingAddress>({
+    name: '',
+    street1: '',
+    street2: '',
+    city: '',
+    stateCode: '',
+    postalCode: '',
+    countryCode: 'US',
+  });
+  const [sameAsRecipient, setSameAsRecipient] = useState(false);
+
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -202,12 +281,37 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
       setError(null);
       setShippingOptions([]);
       setSelectedShippingId(null);
+      setBillingAddress({
+        name: '',
+        street1: '',
+        street2: '',
+        city: '',
+        stateCode: '',
+        postalCode: '',
+        countryCode: 'US',
+      });
+      setSameAsRecipient(false);
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
   }, [isOpen, handleKeyDown, userEmail]);
+
+  // Handle "same as recipient" checkbox for gift orders
+  useEffect(() => {
+    if (sameAsRecipient) {
+      setBillingAddress({
+        name: shippingAddress.name,
+        street1: shippingAddress.street1,
+        street2: shippingAddress.street2 || '',
+        city: shippingAddress.city,
+        stateCode: shippingAddress.stateCode,
+        postalCode: shippingAddress.postalCode,
+        countryCode: shippingAddress.countryCode,
+      });
+    }
+  }, [sameAsRecipient, shippingAddress]);
 
   const isShippingAddressValid = () => {
     return (
@@ -218,6 +322,22 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
       shippingAddress.postalCode.length >= 5 &&
       shippingAddress.email.includes('@')
     );
+  };
+
+  const isBillingAddressValid = () => {
+    return (
+      billingAddress.name.length >= 2 &&
+      billingAddress.street1.length >= 5 &&
+      billingAddress.city.length >= 2 &&
+      billingAddress.stateCode.length === 2 &&
+      billingAddress.postalCode.length >= 5
+    );
+  };
+
+  const isFormValid = () => {
+    if (!isShippingAddressValid()) return false;
+    if (isGift && !isBillingAddressValid()) return false;
+    return true;
   };
 
   const fetchShippingRates = async () => {
@@ -306,8 +426,18 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
             productType: 'hardcover',
             shippingAddress: shippingAddress,
             shippingLevelId: selectedShippingId,
-            shippingCost: Math.round(selectedOption.shippingCost * 100),
-            bookCost: Math.round(selectedOption.productCost * 100),
+            shippingCost: selectedOption.shippingCost,
+            bookCost: selectedOption.productCost,
+            isGift: isGift,
+            billingAddress: isGift ? billingAddress : {
+              name: shippingAddress.name,
+              street1: shippingAddress.street1,
+              street2: shippingAddress.street2 || '',
+              city: shippingAddress.city,
+              stateCode: shippingAddress.stateCode,
+              postalCode: shippingAddress.postalCode,
+              countryCode: shippingAddress.countryCode,
+            },
           }),
         }
       );
@@ -568,8 +698,12 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
               </button>
 
               <div className="text-center">
-                <h2 className="text-2xl font-black text-gunmetal mb-2">Shipping Address</h2>
-                <p className="text-blue-slate text-sm">Where should we send your book?</p>
+                <h2 className="text-2xl font-black text-gunmetal mb-2">
+                  {isGift ? "Recipient's Address" : "Shipping Address"}
+                </h2>
+                <p className="text-blue-slate text-sm">
+                  {isGift ? "Where should we send this gift?" : "Where should we send your book?"}
+                </p>
               </div>
 
               {error && (
@@ -641,15 +775,18 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
 
                   <div>
                     <label className="block text-sm font-bold text-gunmetal mb-2">State *</label>
-                    <input
-                      type="text"
+                    <select
                       value={shippingAddress.stateCode}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, stateCode: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors"
-                      placeholder="CA"
-                      maxLength={2}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, stateCode: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors bg-white"
                       required
-                    />
+                    >
+                      {US_STATES.map((state) => (
+                        <option key={state.code} value={state.code}>
+                          {state.code ? `${state.code} - ${state.name}` : state.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -679,9 +816,116 @@ const BookPurchaseModal: React.FC<BookPurchaseModalProps> = ({
                 </div>
               </div>
 
+              {/* Billing Address Section - Only for gift orders */}
+              {isGift && (
+                <>
+                  <div className="border-t border-silver/30 pt-6">
+                    <div className="text-center mb-4">
+                      <h3 className="text-xl font-black text-gunmetal mb-1">Your Billing Address</h3>
+                      <p className="text-blue-slate text-sm">Your address for payment confirmation</p>
+                    </div>
+
+                    {/* Same as recipient checkbox */}
+                    <label className="flex items-center gap-3 p-4 bg-silver/10 rounded-xl cursor-pointer hover:bg-silver/20 transition-colors mb-4">
+                      <input
+                        type="checkbox"
+                        checked={sameAsRecipient}
+                        onChange={(e) => setSameAsRecipient(e.target.checked)}
+                        className="w-5 h-5 rounded border-2 border-silver text-pacific-cyan focus:ring-pacific-cyan"
+                      />
+                      <span className="text-sm font-semibold text-gunmetal">Same as recipient address</span>
+                    </label>
+
+                    {!sameAsRecipient && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gunmetal mb-2">Full Name *</label>
+                          <input
+                            type="text"
+                            value={billingAddress.name}
+                            onChange={(e) => setBillingAddress({ ...billingAddress, name: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors"
+                            placeholder="Your name"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-gunmetal mb-2">Street Address *</label>
+                          <input
+                            type="text"
+                            value={billingAddress.street1}
+                            onChange={(e) => setBillingAddress({ ...billingAddress, street1: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors"
+                            placeholder="123 Main St"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-gunmetal mb-2">Apartment, Suite, etc. (Optional)</label>
+                          <input
+                            type="text"
+                            value={billingAddress.street2}
+                            onChange={(e) => setBillingAddress({ ...billingAddress, street2: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors"
+                            placeholder="Apt 4"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gunmetal mb-2">City *</label>
+                            <input
+                              type="text"
+                              value={billingAddress.city}
+                              onChange={(e) => setBillingAddress({ ...billingAddress, city: e.target.value })}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors"
+                              placeholder="San Francisco"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-bold text-gunmetal mb-2">State *</label>
+                            <select
+                              value={billingAddress.stateCode}
+                              onChange={(e) => setBillingAddress({ ...billingAddress, stateCode: e.target.value })}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors bg-white"
+                              required
+                            >
+                              {US_STATES.map((state) => (
+                                <option key={state.code} value={state.code}>
+                                  {state.code ? `${state.code} - ${state.name}` : state.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gunmetal mb-2">ZIP Code *</label>
+                            <input
+                              type="text"
+                              value={billingAddress.postalCode}
+                              onChange={(e) => setBillingAddress({ ...billingAddress, postalCode: e.target.value })}
+                              className="w-full px-4 py-3 rounded-xl border-2 border-silver focus:border-pacific-cyan outline-none transition-colors"
+                              placeholder="94102"
+                              required
+                            />
+                          </div>
+                          <div></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               <button
                 onClick={fetchShippingRates}
-                disabled={!isShippingAddressValid() || isLoading}
+                disabled={!isFormValid() || isLoading}
                 className="w-full py-4 bg-gradient-to-r from-soft-gold to-pacific-cyan text-white rounded-xl font-black hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Loading...' : 'Continue to Shipping Options'}

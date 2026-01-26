@@ -34,7 +34,8 @@ import BookProof from './components/BookProof';
 import Confirmation from './components/Confirmation';
 import InfoPages, { InfoPageType } from './components/InfoPages';
 import PricingModal from './components/PricingModal';
-import PurchaseSuccess from './components/PurchaseSuccess';
+import CreditPurchaseSuccess from './components/CreditPurchaseSuccess';
+import BookOrderSuccess from './components/BookOrderSuccess';
 import AdminDashboard from './components/AdminDashboard';
 
 const App: React.FC = () => {
@@ -73,6 +74,8 @@ const App: React.FC = () => {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
+  const [showBookOrderSuccess, setShowBookOrderSuccess] = useState(false);
+  const [bookOrderSessionId, setBookOrderSessionId] = useState<string | null>(null);
 
   // Admin dashboard state
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
@@ -176,10 +179,20 @@ const App: React.FC = () => {
   // Check for successful Stripe purchase return
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('session_id')) {
-      setShowPurchaseSuccess(true);
+    const sessionId = params.get('session_id');
+    const path = window.location.pathname;
+
+    if (sessionId) {
+      // Check if this is a book order success or credit purchase success
+      if (path === '/order-success' || path === '/order-success/') {
+        setShowBookOrderSuccess(true);
+        setBookOrderSessionId(sessionId);
+      } else {
+        // Default to credit purchase success
+        setShowPurchaseSuccess(true);
+      }
       // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState({}, '', '/');
     }
   }, []);
 
@@ -815,17 +828,30 @@ const App: React.FC = () => {
         saveComplete={creationSaved}
       />
 
-      {/* Purchase Success */}
+      {/* Credit Purchase Success */}
       {showPurchaseSuccess && (
         <div className="fixed inset-0 z-50 bg-off-white flex items-center justify-center">
-          <PurchaseSuccess
+          <CreditPurchaseSuccess
             onContinue={() => {
               setShowPurchaseSuccess(false);
               setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
             }}
             onRefreshBalance={refreshCreditBalance}
+            creditBalance={creditBalance}
           />
         </div>
+      )}
+
+      {/* Book Order Success */}
+      {showBookOrderSuccess && bookOrderSessionId && (
+        <BookOrderSuccess
+          sessionId={bookOrderSessionId}
+          onContinue={() => {
+            setShowBookOrderSuccess(false);
+            setBookOrderSessionId(null);
+            setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+          }}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
+import AdminEmailPanel from './AdminEmailPanel';
 
 const ADMIN_EMAIL = 'team@sproutify.app';
 
@@ -161,7 +162,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<BookOrder | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'preview' | 'settings' | 'gallery'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'preview' | 'settings' | 'gallery' | 'emails'>('orders');
 
   // Gallery state
   const [featureLoading, setFeatureLoading] = useState<string | null>(null);
@@ -1069,6 +1070,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             ⚙️ Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('emails')}
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              activeTab === 'emails'
+                ? 'bg-pacific-cyan text-white shadow-lg'
+                : 'bg-white text-gunmetal hover:bg-slate-100'
+            }`}
+          >
+            📧 Emails
           </button>
         </div>
 
@@ -2068,6 +2079,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Emails Tab */}
+        {activeTab === 'emails' && (
+          <AdminEmailPanel adminEmail={effectiveEmail || ADMIN_EMAIL} />
         )}
       </div>
 

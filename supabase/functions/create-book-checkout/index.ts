@@ -1,6 +1,7 @@
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const APP_BASE_URL = Deno.env.get('APP_BASE_URL') || 'https://onceuponadrawing.com'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,6 +52,16 @@ interface ShippingAddress {
   email?: string
 }
 
+interface BillingAddress {
+  name: string
+  street1: string
+  street2?: string
+  city: string
+  stateCode: string
+  postalCode: string
+  countryCode: string
+}
+
 interface CreateBookCheckoutRequest {
   // Order details
   creationId: string
@@ -58,12 +69,16 @@ interface CreateBookCheckoutRequest {
   userEmail: string
   productType: 'ebook' | 'hardcover'
   dedicationText?: string
-  
+
   // Shipping details (required for hardcover)
   shippingAddress?: ShippingAddress
   shippingLevelId?: string // Lulu shipping level code (e.g., "MAIL", "PRIORITY_MAIL")
   shippingCost?: number // Shipping cost in cents
-  
+
+  // Gift order details
+  isGift?: boolean
+  billingAddress?: BillingAddress // Purchaser's address (for gifts, different from shipping)
+
   // Pricing (will be calculated if not provided)
   priceId?: string // Optional - we can create dynamic price
   bookCost?: number // Book production cost in cents
@@ -151,6 +166,8 @@ async function createBookOrder(params: {
   shippingAddress?: ShippingAddress
   shippingLevelId?: string
   contactEmail?: string
+  isGift?: boolean
+  billingAddress?: BillingAddress
 }): Promise<{ id: string }> {
   const orderData: any = {
     user_id: params.userId,
@@ -161,6 +178,7 @@ async function createBookOrder(params: {
     amount_paid: params.amountPaid,
     stripe_session_id: params.stripeSessionId,
     contact_email: params.contactEmail || null,
+    is_gift: params.isGift || false,
   }
 
   // Add shipping information for hardcover orders
@@ -175,6 +193,17 @@ async function createBookOrder(params: {
     orderData.shipping_phone = params.shippingAddress.phoneNumber || null
     orderData.shipping_email = params.shippingAddress.email || null
     orderData.shipping_level_id = params.shippingLevelId || null
+  }
+
+  // Add billing address (purchaser's address)
+  if (params.billingAddress) {
+    orderData.billing_name = params.billingAddress.name
+    orderData.billing_street1 = params.billingAddress.street1
+    orderData.billing_street2 = params.billingAddress.street2 || null
+    orderData.billing_city = params.billingAddress.city
+    orderData.billing_state = params.billingAddress.stateCode
+    orderData.billing_zip = params.billingAddress.postalCode
+    orderData.billing_country = params.billingAddress.countryCode || 'US'
   }
 
   const response = await fetch(
@@ -243,6 +272,8 @@ Deno.serve(async (req) => {
       userEmail: body.userEmail,
       hasShipping: !!body.shippingAddress,
       shippingLevelId: body.shippingLevelId,
+      isGift: body.isGift,
+      hasBilling: !!body.billingAddress,
     })
 
     // Validate required fields
@@ -300,8 +331,8 @@ Deno.serve(async (req) => {
     // If priceId provided, use it; otherwise create inline price
     let sessionParams: any = {
       mode: 'payment',
-      success_url: 'https://onceuponadrawing.com/order-success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://onceuponadrawing.com/order-cancelled',
+      success_url: `${APP_BASE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_BASE_URL}/order-cancelled`,
       customer_email: body.userEmail,
     }
 
@@ -398,7 +429,9 @@ Deno.serve(async (req) => {
       stripeSessionId: session.id,
       shippingAddress: body.shippingAddress,
       shippingLevelId: body.shippingLevelId,
-      contactEmail: body.userEmail,
+      contactEmail: 'team@sproutify.app', // Always use team email for Lulu order issues
+      isGift: body.isGift,
+      billingAddress: body.billingAddress,
     })
     console.log('[create-book-checkout] Book order created:', bookOrder.id)
 

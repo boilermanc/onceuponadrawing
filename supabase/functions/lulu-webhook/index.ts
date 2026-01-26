@@ -262,8 +262,54 @@ Deno.serve(async (req) => {
       trackingNumber: bookOrder.tracking_number,
     });
 
-    // TODO: Send email notification to customer when status changes to shipped
-    // Could trigger a send-email function here
+    // Send shipping notification email when status changes to shipped
+    if (newStatus === 'shipped' && bookOrder.shipping_email && trackingNumber) {
+      // Fetch creation title for the email
+      let bookTitle = 'Your Story';
+      try {
+        const creationResponse = await fetch(
+          `${SUPABASE_URL}/rest/v1/creations?id=eq.${bookOrder.creation_id}&select=title`,
+          {
+            headers: {
+              'apikey': SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+          }
+        );
+        if (creationResponse.ok) {
+          const creations = await creationResponse.json();
+          if (creations && creations.length > 0 && creations[0].title) {
+            bookTitle = creations[0].title;
+          }
+        }
+      } catch (err) {
+        console.error('[lulu-webhook] Failed to fetch creation title:', err);
+      }
+
+      // Send shipping notification email (fire and forget)
+      fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template_key: 'book_shipped',
+          recipient_email: bookOrder.shipping_email,
+          variables: {
+            customer_name: bookOrder.shipping_name || 'Friend',
+            order_id: bookOrder.id.slice(0, 8).toUpperCase(),
+            book_title: bookTitle,
+            tracking_number: trackingNumber,
+            tracking_url: trackingUrl || `https://www.google.com/search?q=${trackingNumber}`,
+          },
+          book_order_id: bookOrder.id,
+        }),
+      }).catch(err => {
+        console.error('[lulu-webhook] Failed to send shipping notification email:', err);
+      });
+      console.log('[lulu-webhook] Shipping notification email triggered');
+    }
 
     return new Response(JSON.stringify({
       received: true,

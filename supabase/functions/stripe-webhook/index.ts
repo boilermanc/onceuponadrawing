@@ -91,6 +91,85 @@ async function handleBookOrder(session: any): Promise<Response> {
     const bookOrder = updatedOrders[0]
     console.log('[stripe-webhook] Book order updated:', bookOrder.id)
 
+    // Fetch creation details for the email
+    let creationTitle = 'Your Story'
+    let artistName = 'Young Artist'
+    try {
+      const creationResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/creations?id=eq.${bookOrder.creation_id}&select=title,artist_name`,
+        {
+          headers: {
+            'apikey': SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          },
+        }
+      )
+      if (creationResponse.ok) {
+        const creations = await creationResponse.json()
+        if (creations && creations.length > 0) {
+          creationTitle = creations[0].title || 'Your Story'
+          artistName = creations[0].artist_name || 'Young Artist'
+        }
+      }
+    } catch (err) {
+      console.error('[stripe-webhook] Failed to fetch creation details:', err)
+    }
+
+    // Send book order confirmation email (fire and forget)
+    const recipientEmail = bookOrder.shipping_email || bookOrder.contact_email || session.customer_email
+    if (recipientEmail) {
+      // Format shipping address for email
+      const shippingAddressLines: string[] = []
+      if (bookOrder.order_type === 'hardcover') {
+        if (bookOrder.shipping_name) shippingAddressLines.push(bookOrder.shipping_name)
+        if (bookOrder.shipping_address) shippingAddressLines.push(bookOrder.shipping_address)
+        if (bookOrder.shipping_address2) shippingAddressLines.push(bookOrder.shipping_address2)
+        const cityStateZip = [
+          bookOrder.shipping_city,
+          bookOrder.shipping_state,
+          bookOrder.shipping_zip,
+        ].filter(Boolean).join(', ')
+        if (cityStateZip) shippingAddressLines.push(cityStateZip)
+        if (bookOrder.shipping_country && bookOrder.shipping_country !== 'US') {
+          shippingAddressLines.push(bookOrder.shipping_country)
+        }
+      }
+
+      // Determine which template to use based on gift status
+      const isGiftOrder = bookOrder.is_gift === true
+      const templateKey = isGiftOrder ? 'book_order_confirmation_gift' : 'book_order_confirmation'
+
+      fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template_key: templateKey,
+          recipient_email: recipientEmail,
+          variables: {
+            customer_name: bookOrder.billing_name || bookOrder.shipping_name || 'Friend',
+            recipient_name: bookOrder.shipping_name || 'the recipient',
+            order_id: bookOrder.id.slice(0, 8).toUpperCase(),
+            book_title: creationTitle,
+            artist_name: artistName,
+            product_type: bookOrder.order_type === 'hardcover' ? 'Hardcover Book' : 'Digital eBook',
+            is_hardcover: bookOrder.order_type === 'hardcover' ? 'true' : 'false',
+            is_gift: isGiftOrder ? 'true' : 'false',
+            amount_paid: `$${(bookOrder.amount_paid / 100).toFixed(2)}`,
+            shipping_address: shippingAddressLines.join('<br>'),
+            estimated_delivery: '7-10 business days',
+            order_status_url: `https://onceuponadrawing.com/order-success?session_id=${session.id}`,
+          },
+          book_order_id: bookOrder.id,
+        }),
+      }).catch(err => {
+        console.error('[stripe-webhook] Failed to send book order confirmation email:', err)
+      })
+      console.log('[stripe-webhook] Book order confirmation email triggered:', templateKey)
+    }
+
     // Trigger PDF generation and Lulu order submission
     // This is done asynchronously to avoid webhook timeout
     console.log('[stripe-webhook] Triggering book processing...')
@@ -244,6 +323,37 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[stripe-webhook] Added ${credits} credits to user ${userId}. New balance: ${newBalance}`)
+
+      // Send credit purchase confirmation email (fire and forget)
+      const customerEmail = session.customer_email || session.customer_details?.email
+      if (customerEmail) {
+        const packDisplayName = packName === 'starter' ? 'Starter Pack' :
+                               packName === 'popular' ? 'Popular Pack' :
+                               packName === 'best_value' ? 'Best Value Pack' : packName
+
+        fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            template_key: 'credit_purchase_confirmation',
+            recipient_email: customerEmail,
+            variables: {
+              customer_name: session.customer_details?.name || 'Friend',
+              credits_added: credits.toString(),
+              new_balance: newBalance.toString(),
+              pack_name: packDisplayName,
+              amount_paid: `$${((PACK_PRICES[packName] || 0) / 100).toFixed(2)}`,
+            },
+            user_id: userId,
+          }),
+        }).catch(err => {
+          console.error('[stripe-webhook] Failed to send credit purchase confirmation email:', err)
+        })
+        console.log('[stripe-webhook] Credit purchase confirmation email triggered')
+      }
     }
 
     return new Response(JSON.stringify({ received: true }), {

@@ -28,6 +28,7 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loadingCreationId, setLoadingCreationId] = useState<string | null>(null);
   const [bookPurchaseCreation, setBookPurchaseCreation] = useState<Creation | null>(null);
+  const [isGiftOrder, setIsGiftOrder] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
 
   // Visibility refresh hook for handling stale connections
@@ -60,8 +61,14 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
       try {
         console.log('[MyCreations] About to call getCreations...');
         const [creationsData, statusData] = await Promise.all([
-          getCreations(userId, signal),
-          canSaveCreation(userId, signal),
+          getCreations(userId, signal).catch(err => {
+            if (isAbortError(err)) return [];
+            throw err;
+          }),
+          canSaveCreation(userId, signal).catch(err => {
+            if (isAbortError(err)) return { canSave: false, savesUsed: 0, limit: 3 } as const;
+            throw err;
+          }),
         ]);
 
         // Check if aborted before updating state
@@ -131,9 +138,10 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
     });
   };
 
-  const handleBookClick = (e: React.MouseEvent, creation: Creation) => {
+  const handleBookClick = (e: React.MouseEvent, creation: Creation, isGift: boolean = false) => {
     e.stopPropagation();
     setBookPurchaseCreation(creation);
+    setIsGiftOrder(isGift);
   };
 
   const handleDownloadVideo = async (e: React.MouseEvent, creation: Creation) => {
@@ -340,21 +348,32 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
                     </span>
                   </div>
 
-                  {/* Action buttons row - only for unlocked creations */}
+                  {/* Action buttons - only for unlocked creations */}
                   {!creation.is_locked && (
-                    <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-gray-100">
-                      <button
-                        onClick={(e) => handleBookClick(e, creation)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-semibold text-sm transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-Order Book
-                      </button>
+                    <div className="flex flex-col gap-2 pt-3 mt-3 border-t border-gray-100">
+                      {/* Book order buttons - side by side on desktop, stacked on mobile */}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={(e) => handleBookClick(e, creation, false)}
+                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-semibold text-sm transition-colors flex-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                          Order Book
+                        </button>
+                        <button
+                          onClick={(e) => handleBookClick(e, creation, true)}
+                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-100 to-purple-100 hover:from-pink-200 hover:to-purple-200 text-purple-900 rounded-lg font-semibold text-sm transition-colors flex-1"
+                        >
+                          <span className="text-base">🎁</span>
+                          Order Gift
+                        </button>
+                      </div>
+                      {/* Download button - separate row */}
                       <button
                         onClick={(e) => handleDownloadVideo(e, creation)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors"
+                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -384,7 +403,10 @@ Order Book
       {/* Book Purchase Modal */}
       <BookPurchaseModal
         isOpen={!!bookPurchaseCreation}
-        onClose={() => setBookPurchaseCreation(null)}
+        onClose={() => {
+          setBookPurchaseCreation(null);
+          setIsGiftOrder(false);
+        }}
         creation={bookPurchaseCreation ? {
           id: bookPurchaseCreation.id,
           title: bookPurchaseCreation.title,
@@ -393,6 +415,7 @@ Order Book
         } : null}
         userId={userId}
         userEmail={userEmail}
+        isGift={isGiftOrder}
       />
     </div>
   );
