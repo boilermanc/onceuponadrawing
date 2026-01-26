@@ -47,6 +47,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
     }
 
     setIsLoading(true);
+    console.log('[Auth] Starting', isLogin ? 'login' : 'signup');
 
     try {
       if (isLogin) {
@@ -62,10 +63,25 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
         });
 
         if (error) throw error;
+        console.log('[Auth] Sign in successful, fetching profile...');
 
-        const profile = await getProfile(data.user.id);
+        // Use AbortController with timeout to prevent infinite hang
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        let profile;
+        try {
+          profile = await getProfile(data.user.id, controller.signal);
+        } catch (profileErr: any) {
+          // If profile fetch times out or fails, continue with auth metadata fallback
+          console.warn('[Auth] Profile fetch failed, using fallback:', profileErr.message);
+          profile = null;
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         if (profile) {
+          console.log('[Auth] Profile found, completing login');
           onAuthenticated({
             id: profile.id,
             firstName: profile.first_name,
