@@ -30,11 +30,11 @@ const Header: React.FC<HeaderProps> = ({
         onClick={onLogoClick}
         className="flex items-center gap-2 cursor-pointer group"
       >
-        <div className="w-10 h-10 bg-pacific-cyan rounded-full flex items-center justify-center text-white shadow-lg shadow-pacific-cyan/30 group-hover:rotate-12 transition-transform">
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-          </svg>
-        </div>
+        <img
+          src="/faveicon.png"
+          alt="Once Upon a Drawing logo"
+          className="w-10 h-10 rounded-full shadow-lg shadow-pacific-cyan/30 group-hover:rotate-12 transition-transform object-cover"
+        />
         <h1 className="text-2xl font-black tracking-tight text-gunmetal">
           Once Upon<span className="text-pacific-cyan"> a Drawing</span>
         </h1>
