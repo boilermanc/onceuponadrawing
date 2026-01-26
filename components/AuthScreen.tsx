@@ -73,12 +73,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           console.log('[Auth] Clearing stale auth tokens:', keysToRemove.length);
           keysToRemove.forEach(key => localStorage.removeItem(key));
         }
+        // Also clear Supabase internal state
+        await supabase.auth.signOut();
 
         console.log('[Auth] Signing in with Supabase client...');
 
         // Attempt normal client login, then fall back to manual token exchange + setSession if it hangs or fails
         let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'] | null = null;
         let sessionUserId: string | null = null;
+        let rawAuthResult: any = null;
         try {
           const result = await withTimeout(
             supabase.auth.signInWithPassword({
@@ -111,23 +114,39 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           });
 
           const authResult = await response.json();
+          rawAuthResult = authResult;
           console.log('[Auth] Fallback token exchange status:', response.status);
 
           if (!response.ok) {
             throw new Error(authResult.error_description || authResult.msg || 'Login failed');
           }
 
-          const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
-            access_token: authResult.access_token,
-            refresh_token: authResult.refresh_token,
-          });
+          const { data: setSessionData, error: setSessionError } = await withTimeout(
+            supabase.auth.setSession({
+              access_token: authResult.access_token,
+              refresh_token: authResult.refresh_token,
+            }),
+            5000,
+            'Supabase setSession (fallback)'
+          );
 
           if (setSessionError) throw setSessionError;
           data = setSessionData;
           sessionUserId = authResult.user?.id || null;
         }
 
-        if (!data?.user) throw new Error('Login failed: no user returned');
+        if (!data?.user && !sessionUserId && rawAuthResult?.user) {
+          // Populate minimal user from auth result if Supabase didn't hydrate yet
+          data = {
+            ...data,
+            user: rawAuthResult.user,
+          } as any;
+        }
+
+        if (!data?.user && !sessionUserId) {
+          console.error('[Auth] No user from signIn/setSession', { data, sessionUserId, rawAuthResult });
+          throw new Error('Login failed: no user returned');
+        }
 
         // Verify session is hydrated
         const sessionCheck = await withTimeout(
