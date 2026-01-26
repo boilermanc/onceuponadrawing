@@ -103,25 +103,27 @@ const App: React.FC = () => {
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('[Root] initAuth session:', session);
+        console.log('[Root] initAuth session:', !!session);
         if (session?.user && isMounted) {
-          let profile = null;
-          try {
-            profile = await getProfile(session.user.id);
-          } catch (e) {
-            console.error('[Root] initAuth profile fetch failed:', e);
-          }
-          if (!isMounted) return;
-          const user = buildUser(session.user, profile);
+          // Set user immediately from session (no blocking)
+          const user = buildUser(session.user, null);
+          console.log('[Root] initAuth setting user:', user.id);
           setState(prev => ({ ...prev, user }));
 
-          // Fetch credit balance
-          try {
-            const balance = await getCreditBalance(session.user.id);
-            if (isMounted) setCreditBalance(balance);
-          } catch (err) {
-            console.error('Failed to fetch credit balance:', err);
-          }
+          // Fetch profile and credits in background
+          (async () => {
+            try {
+              const profile = await getProfile(session.user.id);
+              if (!isMounted) return;
+              const fullUser = buildUser(session.user, profile);
+              setState(prev => ({ ...prev, user: fullUser }));
+
+              const balance = await getCreditBalance(session.user.id);
+              if (isMounted) setCreditBalance(balance);
+            } catch (err) {
+              console.error('[Root] initAuth background fetch failed:', err);
+            }
+          })();
         }
       } catch (err) {
         console.error('Failed to init auth:', err);
@@ -136,23 +138,31 @@ const App: React.FC = () => {
       if (!isMounted) return;
 
       if (session?.user) {
-        try {
-          let profile = null;
-          try {
-            profile = await getProfile(session.user.id);
-          } catch (e) {
-            console.error('[Root] onAuthStateChange profile fetch failed:', e);
-          }
-          if (!isMounted) return;
-          const user = buildUser(session.user, profile);
-          setState(prev => ({ ...prev, user }));
+        // Build user immediately from session data (no async needed)
+        const user = buildUser(session.user, null);
+        console.log('[Root] Setting user from session:', user.id);
+        setState(prev => ({ ...prev, user }));
 
-          // Fetch credit balance
-          const balance = await getCreditBalance(session.user.id);
-          if (isMounted) setCreditBalance(balance);
-        } catch (err) {
-          console.error('Failed to fetch profile/credits:', err);
-        }
+        // Fetch profile and credits in background (don't block UI)
+        (async () => {
+          try {
+            console.log('[Root] Fetching profile...');
+            const profile = await getProfile(session.user.id);
+            console.log('[Root] Profile fetched:', !!profile);
+            if (!isMounted) return;
+
+            // Update user with profile data
+            const fullUser = buildUser(session.user, profile);
+            setState(prev => ({ ...prev, user: fullUser }));
+
+            console.log('[Root] Fetching credit balance...');
+            const balance = await getCreditBalance(session.user.id);
+            console.log('[Root] Credits fetched:', balance);
+            if (isMounted) setCreditBalance(balance);
+          } catch (err) {
+            console.error('[Root] Background fetch failed:', err);
+          }
+        })();
       } else {
         setState(prev => ({ ...prev, user: null }));
         setCreditBalance(null);

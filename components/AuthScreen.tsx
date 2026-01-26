@@ -55,11 +55,12 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           email: formData.email,
           password: formData.password,
         });
+        console.log('[Auth] signInWithPassword returned, error:', error, 'user:', !!data?.user);
 
         if (error) throw error;
         if (!data.user) throw new Error('Login failed: no user returned');
 
-        console.log('[Auth] Login successful, userId:', data.user.id);
+        console.log('[Auth] Calling onAuthenticated...');
         // Don't fetch profile or set user here - let onAuthStateChange in App.tsx handle it
         // Just signal navigation (isNewUser=false means go to next step)
         onAuthenticated({
@@ -70,6 +71,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           subscribed: false,
           createdAt: (data.user as any)?.created_at || new Date().toISOString()
         }, false);
+        console.log('[Auth] onAuthenticated called, login complete');
       } else {
         // Supabase SignUp
         const termsAcceptedAt = new Date().toISOString();
