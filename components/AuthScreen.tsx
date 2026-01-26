@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import Button from './ui/Button';
-import { supabase } from '../services/supabaseClient';
+import { supabase, getSupabaseAnonKey, getSupabaseUrl } from '../services/supabaseClient';
 import { getProfile } from '../services/supabaseService';
 import { useToast } from './ui/Toast';
 import InfoPages, { InfoPageType } from './InfoPages';
@@ -33,6 +33,20 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
     setIsLogin(initialIsLogin);
   }, [initialIsLogin]);
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -62,14 +76,56 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
         console.log('[Auth] Signing in with Supabase client...');
 
-        // Use Supabase client to handle session storage and events
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
+        // Attempt normal client login, then fall back to manual token exchange + setSession if it hangs or fails
+        let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'] | null = null;
+        try {
+          const result = await withTimeout(
+            supabase.auth.signInWithPassword({
+              email: formData.email,
+              password: formData.password,
+            }),
+            8000,
+            'Supabase signInWithPassword'
+          );
+          if (result.error) throw result.error;
+          data = result.data;
+        } catch (primaryErr) {
+          console.warn('[Auth] Primary signInWithPassword failed or timed out, falling back:', primaryErr);
+          const supabaseUrl = getSupabaseUrl();
+          const supabaseAnonKey = getSupabaseAnonKey();
+          if (!supabaseUrl || !supabaseAnonKey) {
+            throw new Error('Supabase credentials missing; cannot attempt fallback login.');
+          }
 
-        if (error) throw error;
-        if (!data.user) throw new Error('Login failed: no user returned');
+          const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+            }),
+          });
+
+          const authResult = await response.json();
+          console.log('[Auth] Fallback token exchange status:', response.status);
+
+          if (!response.ok) {
+            throw new Error(authResult.error_description || authResult.msg || 'Login failed');
+          }
+
+          const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+            access_token: authResult.access_token,
+            refresh_token: authResult.refresh_token,
+          });
+
+          if (setSessionError) throw setSessionError;
+          data = setSessionData;
+        }
+
+        if (!data?.user) throw new Error('Login failed: no user returned');
 
         // Fetch profile for consistent casing/subscription flags
         let profile = null;
