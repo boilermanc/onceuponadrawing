@@ -83,6 +83,19 @@ const App: React.FC = () => {
   // Visibility refresh hook for handling stale connections
   const { refreshKey, getSignal } = useVisibilityRefresh();
 
+  const buildUser = (sessionUser: any, profile: any): User | null => {
+    if (!sessionUser && !profile) return null;
+    const meta = sessionUser?.user_metadata || {};
+    return {
+      id: profile?.id || sessionUser?.id || '',
+      firstName: profile?.first_name || meta.first_name || '',
+      lastName: profile?.last_name || meta.last_name || '',
+      email: profile?.email || sessionUser?.email || '',
+      subscribed: profile?.subscribed || profile?.subscription_tier === 'premium' || false,
+      createdAt: profile?.created_at || sessionUser?.created_at || new Date().toISOString(),
+    };
+  };
+
   // Supabase Auth Listener with visibility refresh support
   useEffect(() => {
     const signal = getSignal();
@@ -90,18 +103,18 @@ const App: React.FC = () => {
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('[Root] initAuth session:', session);
         if (session?.user) {
-          const profile = await getProfile(session.user.id, signal);
+          let profile = null;
+          try {
+            profile = await getProfile(session.user.id, signal);
+          } catch (e) {
+            console.error('[Root] initAuth profile fetch failed:', e);
+          }
+          const user = buildUser(session.user, profile);
           setState(prev => ({
             ...prev,
-            user: profile ? {
-              id: profile.id,
-              firstName: profile.first_name,
-              lastName: profile.last_name,
-              email: profile.email,
-              subscribed: profile.subscribed,
-              createdAt: profile.created_at
-            } : null
+            user,
           }));
           // Fetch credit balance on login
           try {
@@ -125,19 +138,19 @@ const App: React.FC = () => {
     // Auth state changes should NOT use the signal - they need to always work
     // regardless of tab visibility state
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('[Root] onAuthStateChange session:', session);
       if (session?.user) {
         try {
-          const profile = await getProfile(session.user.id);
+          let profile = null;
+          try {
+            profile = await getProfile(session.user.id);
+          } catch (e) {
+            console.error('[Root] onAuthStateChange profile fetch failed:', e);
+          }
+          const user = buildUser(session.user, profile);
           setState(prev => ({
             ...prev,
-            user: profile ? {
-              id: profile.id,
-              firstName: profile.first_name,
-              lastName: profile.last_name,
-              email: profile.email,
-              subscribed: profile.subscribed,
-              createdAt: profile.created_at
-            } : null
+            user,
           }));
           // Fetch credit balance on auth state change
           const balance = await getCreditBalance(session.user.id);
