@@ -56,17 +56,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           email: formData.email,
           password: formData.password,
         });
+        console.log('[Auth] Login successful, result:', data);
 
         if (error) throw error;
         if (!data.user) throw new Error('Login failed: no user returned');
         const hydratedUserId = data.user.id;
 
         // Fetch profile for consistent casing/subscription flags
-        let profile = null;
+        let profile: any = null;
         try {
           profile = await getProfile(hydratedUserId);
         } catch (profileErr) {
           console.error('[Auth] Profile fetch failed:', profileErr);
+          profile = null;
         }
 
         const subscribed = (profile as any)?.subscribed ?? ((profile as any)?.subscription_tier === 'premium');
