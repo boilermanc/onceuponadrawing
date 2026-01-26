@@ -237,6 +237,11 @@ async function createBookOrder(params: {
 Deno.serve(async (req) => {
   console.log('[create-book-checkout] Request received:', req.method)
 
+  // Log Stripe mode for debugging (test vs live)
+  const stripeMode = STRIPE_SECRET_KEY?.startsWith('sk_test_') ? 'TEST' :
+                     STRIPE_SECRET_KEY?.startsWith('sk_live_') ? 'LIVE' : 'UNKNOWN'
+  console.log('[create-book-checkout] Stripe mode:', stripeMode)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -338,6 +343,13 @@ Deno.serve(async (req) => {
       : `${DEFAULT_BASE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = body.cancelUrl || `${DEFAULT_BASE_URL}/order-cancelled`
 
+    console.log('[create-book-checkout] Redirect URLs:', {
+      successUrl,
+      cancelUrl,
+      providedSuccessUrl: body.successUrl,
+      providedCancelUrl: body.cancelUrl,
+    })
+
     // If priceId provided, use it; otherwise create inline price
     let sessionParams: any = {
       mode: 'payment',
@@ -426,7 +438,14 @@ Deno.serve(async (req) => {
     }
 
     const session = await stripeResponse.json()
-    console.log('[create-book-checkout] Checkout session created:', session.id)
+    console.log('[create-book-checkout] Checkout session created:', {
+      sessionId: session.id,
+      sessionUrl: session.url,
+      mode: session.mode,
+      paymentStatus: session.payment_status,
+      successUrl: session.success_url,
+      cancelUrl: session.cancel_url,
+    })
 
     // Create pending book order in database
     console.log('[create-book-checkout] Creating book order in database...')
