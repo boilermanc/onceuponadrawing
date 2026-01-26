@@ -212,17 +212,23 @@ const App: React.FC = () => {
     const sessionId = params.get('session_id');
     const path = window.location.pathname;
 
+    console.log('[App] Route detection - path:', path, 'sessionId:', sessionId);
+
     if (sessionId) {
       // Check if this is a book order success or credit purchase success
       if (path === '/order-success' || path === '/order-success/') {
+        console.log('[App] Setting showBookOrderSuccess to true');
         setShowBookOrderSuccess(true);
         setBookOrderSessionId(sessionId);
       } else {
         // Default to credit purchase success
+        console.log('[App] Setting showPurchaseSuccess to true');
         setShowPurchaseSuccess(true);
       }
-      // Clean up URL
-      window.history.replaceState({}, '', '/');
+      // Clean up URL - but DON'T do this immediately, wait for state to settle
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/');
+      }, 100);
     }
   }, []);
 
