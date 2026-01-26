@@ -33,20 +33,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
     setIsLogin(initialIsLogin);
   }, [initialIsLogin]);
 
-  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
-    let timeoutId: number | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    });
-    try {
-      return await Promise.race([promise, timeoutPromise]);
-    } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -65,124 +51,15 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
     try {
       if (isLogin) {
-        // Clear any stale Supabase auth state from localStorage to prevent hanging
-        const keysToRemove = Object.keys(localStorage).filter(key =>
-          key.startsWith('sb-') && key.includes('-auth-token')
-        );
-        if (keysToRemove.length > 0) {
-          console.log('[Auth] Clearing stale auth tokens:', keysToRemove.length);
-          keysToRemove.forEach(key => localStorage.removeItem(key));
-        }
-        // Also clear Supabase internal state (best effort)
-        try {
-          await withTimeout(supabase.auth.signOut(), 3000, 'Supabase signOut');
-        } catch (signOutErr) {
-          console.warn('[Auth] signOut before login failed/timed out:', signOutErr);
-        }
-
         console.log('[Auth] Signing in with Supabase client...');
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
 
-        // Attempt normal client login, then fall back to manual token exchange + setSession if it hangs or fails
-        let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'] | null = null;
-        let sessionUserId: string | null = null;
-        let rawAuthResult: any = null;
-        let fallbackUser: any = null;
-        try {
-          const result = await withTimeout(
-            supabase.auth.signInWithPassword({
-              email: formData.email,
-              password: formData.password,
-            }),
-            6000,
-            'Supabase signInWithPassword'
-          );
-          if (result.error) throw result.error;
-          data = result.data;
-        } catch (primaryErr) {
-          console.warn('[Auth] Primary signInWithPassword failed or timed out, falling back:', primaryErr);
-          const supabaseUrl = getSupabaseUrl();
-          const supabaseAnonKey = getSupabaseAnonKey();
-          if (!supabaseUrl || !supabaseAnonKey) {
-            throw new Error('Supabase credentials missing; cannot attempt fallback login.');
-          }
-
-          const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseAnonKey,
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-            }),
-          });
-
-          const authResult = await response.json();
-          rawAuthResult = authResult;
-          console.log('[Auth] Fallback token exchange status:', response.status, { hasAccessToken: !!authResult?.access_token, hasUser: !!authResult?.user });
-
-          if (!response.ok) {
-            throw new Error(authResult.error_description || authResult.msg || 'Login failed');
-          }
-
-          const { data: setSessionData, error: setSessionError } = await withTimeout(
-            supabase.auth.setSession({
-              access_token: authResult.access_token,
-              refresh_token: authResult.refresh_token,
-            }),
-            5000,
-            'Supabase setSession (fallback)'
-          );
-
-          if (setSessionError) throw setSessionError;
-          data = setSessionData;
-          sessionUserId = authResult.user?.id || null;
-
-          // Direct fetch for user in case session hydration lags
-          try {
-            const userResult = await withTimeout(
-              supabase.auth.getUser(authResult.access_token),
-              4000,
-              'Supabase getUser with access token'
-            );
-            fallbackUser = userResult.data.user || rawAuthResult?.user || null;
-          } catch (userErr) {
-            console.warn('[Auth] getUser with access token failed:', userErr);
-          }
-        }
-
-        if (!data?.user && !sessionUserId && rawAuthResult?.user) {
-          // Populate minimal user from auth result if Supabase didn't hydrate yet
-          data = {
-            ...data,
-            user: rawAuthResult.user,
-          } as any;
-        }
-
-        if (!data?.user && !sessionUserId && fallbackUser) {
-          data = {
-            ...data,
-            user: fallbackUser,
-          } as any;
-        }
-
-        if (!data?.user && !sessionUserId) {
-          console.error('[Auth] No user from signIn/setSession', { data, sessionUserId, rawAuthResult, fallbackUser });
-          throw new Error('Login failed: no user returned');
-        }
-
-        // Verify session is hydrated
-        const sessionCheck = await withTimeout(
-          supabase.auth.getSession(),
-          4000,
-          'Supabase getSession after login'
-        );
-        const hydratedUserId = sessionCheck.data.session?.user?.id || sessionUserId || data?.user?.id || fallbackUser?.id;
-        if (!hydratedUserId) {
-          console.error('[Auth] Session hydration failed', { sessionCheck });
-          throw new Error('Login failed: session not hydrated');
-        }
+        if (error) throw error;
+        if (!data.user) throw new Error('Login failed: no user returned');
+        const hydratedUserId = data.user.id;
 
         // Fetch profile for consistent casing/subscription flags
         let profile = null;
