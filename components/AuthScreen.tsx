@@ -60,20 +60,35 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
           keysToRemove.forEach(key => localStorage.removeItem(key));
         }
 
-        console.log('[Auth] Calling signInWithPassword...');
+        console.log('[Auth] Calling signInWithPassword via direct fetch...');
 
-        // Wrap signInWithPassword in a timeout to prevent hanging
-        const signInPromise = supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+        // Use direct fetch to Supabase auth API to avoid client-side Promise hanging
+        const supabaseUrl = 'https://cdhymstkzhlxcucbzipr.supabase.co';
+        const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': process.env.SUPABASE_ANON_KEY || '',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
         });
 
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Login timed out. Please try again.')), 15000);
-        });
+        const authResult = await response.json();
+        console.log('[Auth] Direct fetch returned, status:', response.status);
 
-        const { data, error } = await Promise.race([signInPromise, timeoutPromise]);
-        console.log('[Auth] signInWithPassword returned, error:', error?.message || 'none');
+        if (!response.ok) {
+          throw new Error(authResult.error_description || authResult.msg || 'Login failed');
+        }
+
+        // Manually set the session in Supabase client
+        const { data, error } = await supabase.auth.setSession({
+          access_token: authResult.access_token,
+          refresh_token: authResult.refresh_token,
+        });
+        console.log('[Auth] Session set, error:', error?.message || 'none');
 
         if (error) throw error;
         console.log('[Auth] Sign in successful, fetching profile...');
