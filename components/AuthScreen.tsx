@@ -51,16 +51,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthenticated, hasResult, ini
 
     try {
       if (isLogin) {
-        // Clear any stale session before login
-        console.log('[Auth] Checking for existing session...');
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('[Auth] Session check complete, has session:', !!sessionData?.session);
-        if (sessionData?.session) {
-          console.log('[Auth] Signing out stale session...');
-          await supabase.auth.signOut();
-          console.log('[Auth] Sign out complete');
-        }
-
         console.log('[Auth] Calling signInWithPassword...');
         const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
