@@ -6,8 +6,6 @@ import {
   Creation,
   CreationWithSignedUrls,
 } from '../services/creationsService';
-import { supabase } from '../services/supabaseClient';
-import BookPurchaseModal from './BookPurchaseModal';
 import { useVisibilityRefresh, isAbortError } from '../hooks/useVisibilityRefresh';
 
 interface MyCreationsProps {
@@ -16,9 +14,10 @@ interface MyCreationsProps {
   onOpenCreation: (creation: CreationWithSignedUrls) => void;
   onStartCreation: () => void;
   onGetCredits: () => void;
+  onOrderBook: (creationId: string, isGift: boolean) => void;
 }
 
-const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreation, onStartCreation, onGetCredits }) => {
+const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreation, onStartCreation, onGetCredits, onOrderBook }) => {
   console.log('[MyCreations] Component rendered, userId:', userId);
 
   const [creations, setCreations] = useState<Creation[]>([]);
@@ -27,27 +26,9 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
   const [saveStatus, setSaveStatus] = useState<{ savesUsed: number; limit: number } | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [loadingCreationId, setLoadingCreationId] = useState<string | null>(null);
-  const [bookPurchaseCreation, setBookPurchaseCreation] = useState<Creation | null>(null);
-  const [isGiftOrder, setIsGiftOrder] = useState(false);
-  const [userEmail, setUserEmail] = useState<string>('');
 
   // Visibility refresh hook for handling stale connections
   const { refreshKey, getSignal } = useVisibilityRefresh();
-
-  // Fetch user email on mount
-  useEffect(() => {
-    const fetchUserEmail = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          setUserEmail(user.email);
-        }
-      } catch (err) {
-        console.error('[MyCreations] Error fetching user email:', err);
-      }
-    };
-    fetchUserEmail();
-  }, []);
 
   // Fetch creations on mount and when tab becomes visible
   useEffect(() => {
@@ -140,8 +121,7 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
 
   const handleBookClick = (e: React.MouseEvent, creation: Creation, isGift: boolean = false) => {
     e.stopPropagation();
-    setBookPurchaseCreation(creation);
-    setIsGiftOrder(isGift);
+    onOrderBook(creation.id, isGift);
   };
 
   const handleDownloadVideo = async (e: React.MouseEvent, creation: Creation) => {
@@ -400,23 +380,6 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
         </div>
       )}
 
-      {/* Book Purchase Modal */}
-      <BookPurchaseModal
-        isOpen={!!bookPurchaseCreation}
-        onClose={() => {
-          setBookPurchaseCreation(null);
-          setIsGiftOrder(false);
-        }}
-        creation={bookPurchaseCreation ? {
-          id: bookPurchaseCreation.id,
-          title: bookPurchaseCreation.title,
-          artistName: bookPurchaseCreation.artist_name || 'Young Artist',
-          thumbnailUrl: bookPurchaseCreation.thumbnail_url,
-        } : null}
-        userId={userId}
-        userEmail={userEmail}
-        isGift={isGiftOrder}
-      />
     </div>
   );
 };

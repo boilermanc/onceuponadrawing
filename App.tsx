@@ -11,7 +11,7 @@ import {
   createOrder,
   getProfile
 } from './services/supabaseService';
-import { canSaveCreation, saveCreation, recordProofApproval, CreationWithSignedUrls } from './services/creationsService';
+import { canSaveCreation, saveCreation, recordProofApproval, getCreation, CreationWithSignedUrls } from './services/creationsService';
 import { getCreditBalance, canCreate, useCredit, CreditBalance } from './services/creditsService';
 import { createCheckout } from './services/stripeService';
 import { useVisibilityRefresh, isAbortError } from './hooks/useVisibilityRefresh';
@@ -629,6 +629,33 @@ const App: React.FC = () => {
     setShowMyCreations(false);
   };
 
+  const handleOrderBook = async (creationId: string, _isGift: boolean) => {
+    if (!state.user) return;
+    const creation = await getCreation(state.user.id, creationId);
+    if (!creation) return;
+
+    setViewingCreation(creation);
+
+    const analysisWithImages: DrawingAnalysis = {
+      ...creation.analysis_json,
+      pages: creation.analysis_json.pages.map((page, index) => ({
+        ...page,
+        imageUrl: creation.page_image_urls[index] || page.imageUrl,
+      })),
+    };
+
+    setState(prev => ({
+      ...prev,
+      originalImage: creation.original_image_url,
+      finalVideoUrl: creation.video_url,
+      heroImageUrl: creation.original_image_url,
+      analysis: analysisWithImages,
+      step: AppStep.CHECKOUT,
+    }));
+
+    setShowMyCreations(false);
+  };
+
   const isImmersiveStep = state.step === AppStep.RESULT || state.step === AppStep.ANIMATING || showStorybook;
 
   const handleExitAdmin = () => {
@@ -822,6 +849,7 @@ const App: React.FC = () => {
               setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
             }}
             onGetCredits={() => setShowPricingModal(true)}
+            onOrderBook={handleOrderBook}
           />
         </div>
       )}
