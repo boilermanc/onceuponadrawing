@@ -1,3 +1,5 @@
+import { LOOKUP_KEYS, getPriceByLookupKey } from '../_shared/stripe-pricing.ts';
+
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -85,83 +87,11 @@ interface CreateBookCheckoutRequest {
   billingAddress?: BillingAddress // Purchaser's address (for gifts, different from shipping)
 
   // Pricing (will be calculated if not provided)
-  priceId?: string // Optional - we can create dynamic price
   bookCost?: number // Book production cost in cents
 
   // Stripe redirect URLs (from frontend)
   successUrl?: string
   cancelUrl?: string
-}
-
-interface StripePrice {
-  id: string
-  unit_amount: number
-  currency: string
-}
-
-interface StripeCheckoutSession {
-  id: string
-  url: string
-  payment_intent: string
-}
-
-// Fetch price details from Stripe to get the amount
-async function getStripePrice(priceId: string): Promise<StripePrice> {
-  const response = await fetch(`https://api.stripe.com/v1/prices/${priceId}`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-    },
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Failed to fetch price: ${errorText}`)
-  }
-
-  return response.json()
-}
-
-// Create Stripe Checkout Session
-async function createStripeCheckoutSession(params: {
-  priceId: string
-  successUrl: string
-  cancelUrl: string
-  customerEmail: string
-  metadata: Record<string, string>
-}): Promise<StripeCheckoutSession> {
-  const body = new URLSearchParams({
-    'payment_method_types[]': 'card',
-    'line_items[0][price]': params.priceId,
-    'line_items[0][quantity]': '1',
-    'mode': 'payment',
-    'success_url': params.successUrl,
-    'cancel_url': params.cancelUrl,
-    'customer_email': params.customerEmail,
-    'locale': 'en',
-  })
-
-  // Add metadata
-  for (const [key, value] of Object.entries(params.metadata)) {
-    body.append(`metadata[${key}]`, value)
-  }
-
-  const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body,
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('[create-book-checkout] Stripe API error:', response.status, errorText)
-    throw new Error(`Stripe API error (${response.status}): ${errorText}`)
-  }
-
-  return response.json()
 }
 
 // Create pending book order in database
@@ -345,26 +275,43 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Calculate total amount
+    // Resolve price via lookup key
+    const lookupKeyMap: Record<string, string> = {
+      ebook: LOOKUP_KEYS.books.digital,
+      softcover: LOOKUP_KEYS.books.softcover,
+      hardcover: LOOKUP_KEYS.books.hardcover,
+    };
+    const lookupKey = lookupKeyMap[body.productType];
+    console.log('[create-book-checkout] Fetching price for lookup key:', lookupKey);
+
     let totalAmount: number
     let description: string
-    
-    if (body.productType === 'ebook') {
-      totalAmount = 1299 // $12.99 for ebook
-      description = 'Once Upon a Drawing - eBook'
-    } else if (body.priceId) {
-      // When using a Stripe price ID, Stripe handles the amount
-      const priceDetails = await getStripePrice(body.priceId)
-      totalAmount = priceDetails.unit_amount
-      description = body.productType === 'softcover'
-        ? 'Once Upon a Drawing - Softcover Book'
-        : 'Once Upon a Drawing - Hardcover Book'
-    } else {
+    let resolvedPriceId: string | undefined
+
+    try {
+      const stripePrice = await getPriceByLookupKey(lookupKey);
+      resolvedPriceId = stripePrice.id;
+      totalAmount = stripePrice.unit_amount;
+
+      if (isPhysical) {
+        // Add shipping cost on top of book price
+        totalAmount += (body.shippingCost || 0);
+      }
+
+      description = body.productType === 'ebook'
+        ? 'Once Upon a Drawing - eBook'
+        : body.productType === 'softcover'
+          ? 'Once Upon a Drawing - Softcover Book'
+          : 'Once Upon a Drawing - Hardcover Book'
+    } catch (err) {
+      console.error('[create-book-checkout] Failed to fetch price by lookup key, using fallback:', err);
       // Fallback: book cost + shipping cost
-      totalAmount = (body.bookCost || 0) + (body.shippingCost || 0)
+      totalAmount = (body.bookCost || 0) + (body.shippingCost || 0);
       description = body.productType === 'softcover'
         ? 'Once Upon a Drawing - Softcover Book'
-        : 'Once Upon a Drawing - Hardcover Book'
+        : body.productType === 'hardcover'
+          ? 'Once Upon a Drawing - Hardcover Book'
+          : 'Once Upon a Drawing - eBook'
     }
 
     console.log('[create-book-checkout] Total amount:', totalAmount, 'cents')
@@ -382,7 +329,8 @@ Deno.serve(async (req) => {
       providedCancelUrl: body.cancelUrl,
     })
 
-    // If priceId provided, use it; otherwise create inline price
+    // Build checkout session params — always use dynamic price_data so we can
+    // include shipping in the total amount
     let sessionParams: any = {
       mode: 'payment',
       success_url: successUrl,
@@ -390,28 +338,19 @@ Deno.serve(async (req) => {
       customer_email: body.userEmail,
     }
 
-    if (body.priceId) {
-      // Use existing price
-      sessionParams.line_items = [{
-        price: body.priceId,
-        quantity: 1,
-      }]
-    } else {
-      // Create dynamic price inline
-      sessionParams.line_items = [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: description,
-            description: body.productType === 'hardcover' 
-              ? `Includes book printing and ${body.shippingLevelId} shipping`
-              : 'Digital PDF book',
-          },
-          unit_amount: totalAmount,
+    sessionParams.line_items = [{
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: description,
+          description: isPhysical
+            ? `Includes book printing and ${body.shippingLevelId || 'standard'} shipping`
+            : 'Digital PDF book',
         },
-        quantity: 1,
-      }]
-    }
+        unit_amount: totalAmount,
+      },
+      quantity: 1,
+    }]
 
     // Add metadata
     sessionParams.metadata = {
@@ -439,17 +378,12 @@ Deno.serve(async (req) => {
     formBody.append('customer_email', sessionParams.customer_email)
     formBody.append('payment_method_types[0]', 'card')
 
-    // Add line items
-    if (body.priceId) {
-      formBody.append('line_items[0][price]', body.priceId)
-      formBody.append('line_items[0][quantity]', '1')
-    } else {
-      formBody.append('line_items[0][price_data][currency]', 'usd')
-      formBody.append('line_items[0][price_data][product_data][name]', description)
-      formBody.append('line_items[0][price_data][product_data][description]', sessionParams.line_items[0].price_data.product_data.description)
-      formBody.append('line_items[0][price_data][unit_amount]', totalAmount.toString())
-      formBody.append('line_items[0][quantity]', '1')
-    }
+    // Add line items (always dynamic price_data)
+    formBody.append('line_items[0][price_data][currency]', 'usd')
+    formBody.append('line_items[0][price_data][product_data][name]', description)
+    formBody.append('line_items[0][price_data][product_data][description]', sessionParams.line_items[0].price_data.product_data.description)
+    formBody.append('line_items[0][price_data][unit_amount]', totalAmount.toString())
+    formBody.append('line_items[0][quantity]', '1')
 
     // Add metadata
     for (const [key, value] of Object.entries(sessionParams.metadata)) {

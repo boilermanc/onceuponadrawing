@@ -170,23 +170,38 @@ async function handleBookOrder(session: any): Promise<Response> {
       console.log('[stripe-webhook] Book order confirmation email triggered:', templateKey)
     }
 
-    // Trigger PDF generation and Lulu order submission
-    // This is done asynchronously to avoid webhook timeout
-    console.log('[stripe-webhook] Triggering book processing...')
-    
-    // Call process-book-order function (fire and forget)
-    fetch(`${SUPABASE_URL}/functions/v1/process-book-order`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        bookOrderId: bookOrder.id,
-      }),
-    }).catch(err => {
-      console.error('[stripe-webhook] Failed to trigger book processing:', err)
-    })
+    // Route to the correct processing function based on order type
+    console.log('[stripe-webhook] Triggering book processing for order type:', bookOrder.order_type)
+
+    if (bookOrder.order_type === 'ebook') {
+      // Ebook: generate PDF and deliver download link
+      fetch(`${SUPABASE_URL}/functions/v1/process-ebook-order`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookOrderId: bookOrder.id,
+        }),
+      }).catch(err => {
+        console.error('[stripe-webhook] Failed to trigger ebook processing:', err)
+      })
+    } else {
+      // Physical book: generate PDFs and submit to Lulu
+      fetch(`${SUPABASE_URL}/functions/v1/process-book-order`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookOrderId: bookOrder.id,
+        }),
+      }).catch(err => {
+        console.error('[stripe-webhook] Failed to trigger book processing:', err)
+      })
+    }
 
     console.log('[stripe-webhook] Book order webhook processed successfully')
     return new Response(JSON.stringify({ received: true, bookOrderId: bookOrder.id }), {

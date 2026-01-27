@@ -217,8 +217,8 @@ BEGIN
         RETURN true;
     END IF;
 
-    -- Free users can save up to 3 creations
-    RETURN COALESCE(current_saves, 0) < 3;
+    -- Free users can save up to 2 creations
+    RETURN COALESCE(current_saves, 0) < 2;
 END;
 $$;
 

@@ -1,49 +1,24 @@
 import { LuluConfig, getLuluAccessToken, getShippingRates, ShippingAddress } from '../_shared/lulu-api.ts';
 import { LULU_PRODUCT_CODE } from '../_shared/pdf-specs.ts';
+import { LOOKUP_KEYS, getPriceByLookupKey } from '../_shared/stripe-pricing.ts';
 
 const LULU_SANDBOX_CLIENT_KEY = Deno.env.get('LULU_SANDBOX_CLIENT_KEY')!;
 const LULU_SANDBOX_CLIENT_SECRET = Deno.env.get('LULU_SANDBOX_CLIENT_SECRET')!;
 const LULU_PRODUCTION_CLIENT_KEY = Deno.env.get('LULU_PRODUCTION_CLIENT_KEY')!;
 const LULU_PRODUCTION_CLIENT_SECRET = Deno.env.get('LULU_PRODUCTION_CLIENT_SECRET')!;
 const LULU_USE_SANDBOX = Deno.env.get('LULU_USE_SANDBOX'); // "true" or "false"
-const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
-
-// Fetch book retail price from Stripe by searching for products
+// Fetch book retail price from Stripe via lookup key
 async function getStripeBookPrice(bookType: 'softcover' | 'hardcover'): Promise<number> {
-  // Search for prices with product names containing the book type
-  const response = await fetch(
-    `https://api.stripe.com/v1/prices?active=true&expand[]=data.product&limit=100`,
-    {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    console.error('[get-lulu-shipping] Failed to fetch Stripe prices');
+  const lookupKey = LOOKUP_KEYS.books[bookType];
+  try {
+    const price = await getPriceByLookupKey(lookupKey);
+    console.log(`[get-lulu-shipping] Found Stripe price for ${bookType} (lookup_key=${lookupKey}):`, price.unit_amount);
+    return price.unit_amount;
+  } catch (err) {
+    console.error(`[get-lulu-shipping] Failed to fetch price for ${bookType}:`, err);
     // Fallback prices if Stripe fails (in cents)
     return bookType === 'hardcover' ? 3499 : 2499;
   }
-
-  const data = await response.json();
-
-  // Find a price whose product name contains the book type
-  for (const price of data.data) {
-    const productName = typeof price.product === 'object'
-      ? price.product.name?.toLowerCase()
-      : '';
-
-    if (productName.includes(bookType) && productName.includes('book')) {
-      console.log(`[get-lulu-shipping] Found Stripe price for ${bookType}:`, price.unit_amount);
-      return price.unit_amount; // Already in cents
-    }
-  }
-
-  // Fallback prices if no matching product found (in cents)
-  console.log(`[get-lulu-shipping] No Stripe price found for ${bookType}, using fallback`);
-  return bookType === 'hardcover' ? 3499 : 2499;
 }
 
 const SANDBOX_API_URL = 'https://api.sandbox.lulu.com';

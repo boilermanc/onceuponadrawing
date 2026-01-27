@@ -291,7 +291,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
             <div className="flex items-center justify-center gap-4 mb-10 pb-10 border-b border-silver/20">
               <span className="text-5xl">🎁</span>
               <div className="text-center sm:text-left">
-                <p className="text-2xl md:text-3xl font-black text-gunmetal">3 Free Creations</p>
+                <p className="text-2xl md:text-3xl font-black text-gunmetal">2 Free Creations</p>
                 <p className="text-blue-slate font-medium">No credit card required</p>
               </div>
             </div>
@@ -413,7 +413,7 @@ const StepInitial: React.FC<StepInitialProps> = ({ onStart, onLogin }) => {
            >
               ENTER THE STUDIO ✨
            </button>
-           <p className="text-[12px] text-silver font-black uppercase tracking-[0.6em] mt-12">No Credit Card Required • 3 Free Creations</p>
+           <p className="text-[12px] text-silver font-black uppercase tracking-[0.6em] mt-12">No Credit Card Required • 2 Free Creations</p>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 
 // Constants
-const FREE_CREATION_LIMIT = 3;
+const FREE_CREATION_LIMIT = 2;
 const CREDIT_PACK_PRICES = {
   starter: { credits: 3, cents: 1299 },
   popular: { credits: 5, cents: 1999 },

@@ -15,6 +15,10 @@ interface PricingModalProps {
   saveComplete?: boolean;
 }
 
+const ANCHOR_PRICES: Record<string, number> = {
+  popular: 39.99,
+};
+
 const packs = [
   {
     id: 'starter' as const,
@@ -28,11 +32,12 @@ const packs = [
   {
     id: 'popular' as const,
     name: 'Popular',
-    price: 19.99,
+    price: 24.99,
     credits: 5,
-    perStory: '$4.00 per story — Save 8%',
+    perStory: '$5.00 per story',
     badge: 'Most Popular',
     featured: true,
+    saveBadge: 'Save 38%',
   },
   {
     id: 'best_value' as const,
@@ -54,7 +59,7 @@ const PricingModal: React.FC<PricingModalProps> = ({
   isAuthenticated = false,
   isSaving = false,
   savesUsed = 0,
-  saveLimit = 3,
+  saveLimit = 2,
   saveComplete = false,
 }) => {
   if (!isOpen) return null;
@@ -158,10 +163,24 @@ const PricingModal: React.FC<PricingModalProps> = ({
 
                 <div className="text-center pt-2">
                   <h3 className="text-xl font-bold text-gunmetal mb-1">{pack.name}</h3>
-                  <div className="text-4xl font-bold text-gunmetal mb-1">
-                    ${pack.price.toFixed(2)}
+                  <div className="mb-1">
+                    {ANCHOR_PRICES[pack.id] ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-slate-400 line-through text-base">${ANCHOR_PRICES[pack.id].toFixed(2)}</span>
+                        <span className="text-3xl font-black text-gunmetal">${pack.price.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <div className="text-4xl font-bold text-gunmetal">
+                        ${pack.price.toFixed(2)}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-gunmetal/60 mb-4">
+                  {'saveBadge' in pack && pack.saveBadge && (
+                    <span className="inline-block mt-1 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold">
+                      {pack.saveBadge}
+                    </span>
+                  )}
+                  <div className="text-gunmetal/60 mb-4 mt-2">
                     {pack.credits} creation{pack.credits !== 1 ? 's' : ''}
                   </div>
                   <div className={`text-sm mb-6 ${pack.featured ? 'text-pacific-cyan font-semibold' : 'text-gunmetal/70'}`}>

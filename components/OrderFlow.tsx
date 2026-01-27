@@ -4,6 +4,10 @@ import { DrawingAnalysis, ProductType, ShippingInfo } from '../types';
 import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
 
+const ANCHOR_PRICES: Record<string, number> = {
+  hardcover: 59.99,
+};
+
 interface BookPrice {
   priceId: string;
   amount: number;
@@ -245,7 +249,15 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                     {product === ProductType.HARDCOVER && prices.hardcover && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                     <div className="flex justify-between items-start mb-6">
                       <span className="text-5xl group-hover:scale-110 transition-transform">📖</span>
-                      <span className="font-black text-pacific-cyan text-xl">{prices.hardcover?.displayPrice || 'N/A'}</span>
+                      <div className="text-right">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 line-through text-sm">${ANCHOR_PRICES.hardcover.toFixed(2)}</span>
+                          <span className="font-black text-pacific-cyan text-xl">{prices.hardcover?.displayPrice || 'N/A'}</span>
+                        </div>
+                        <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold mt-1">
+                          Save 25%
+                        </span>
+                      </div>
                     </div>
                     <h3 className="font-black text-gunmetal text-xl">{prices.hardcover?.productName || 'Hardcover Book'}</h3>
                     <p className="text-xs text-blue-slate mt-2 leading-relaxed">8.5" x 8.5" casewrap hardcover with premium color, shipped to your door.</p>

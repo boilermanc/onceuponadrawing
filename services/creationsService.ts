@@ -220,7 +220,7 @@ export async function getCreations(userId: string, signal?: AbortSignal): Promis
 export async function canSaveCreation(userId: string, signal?: AbortSignal): Promise<CanSaveResult> {
   // Check if already aborted
   if (signal?.aborted) {
-    return { canSave: false, reason: 'limit_reached', savesUsed: 0, limit: 3 };
+    return { canSave: false, reason: 'limit_reached', savesUsed: 0, limit: FREE_CREATION_LIMIT };
   }
 
   // Call the database function
@@ -231,20 +231,20 @@ export async function canSaveCreation(userId: string, signal?: AbortSignal): Pro
 
   if (rpcError) {
     if (isAbortError(rpcError)) {
-      return { canSave: false, reason: 'limit_reached', savesUsed: 0, limit: 3 };
+      return { canSave: false, reason: 'limit_reached', savesUsed: 0, limit: FREE_CREATION_LIMIT };
     }
     console.error('Failed to check save eligibility:', rpcError);
     return {
       canSave: false,
       reason: 'limit_reached',
       savesUsed: 0,
-      limit: 3,
+      limit: FREE_CREATION_LIMIT,
     };
   }
 
   // Check abort before profile fetch
   if (signal?.aborted) {
-    return { canSave: Boolean(canSave), savesUsed: 0, limit: 3 };
+    return { canSave: Boolean(canSave), savesUsed: 0, limit: FREE_CREATION_LIMIT };
   }
 
   // Fetch user profile for detailed info
@@ -261,13 +261,13 @@ export async function canSaveCreation(userId: string, signal?: AbortSignal): Pro
 
   if (profileError) {
     if (isAbortError(profileError)) {
-      return { canSave: Boolean(canSave), savesUsed: 0, limit: 3 };
+      return { canSave: Boolean(canSave), savesUsed: 0, limit: FREE_CREATION_LIMIT };
     }
     console.error('Failed to fetch profile:', profileError);
     return {
       canSave: Boolean(canSave),
       savesUsed: 0,
-      limit: 3,
+      limit: FREE_CREATION_LIMIT,
     };
   }
 

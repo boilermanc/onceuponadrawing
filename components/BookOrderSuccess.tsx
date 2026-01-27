@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 
 interface BookOrderDetails {
   id: string;
-  order_type: 'ebook' | 'hardcover';
+  order_type: 'ebook' | 'hardcover' | 'softcover';
   status: string;
   amount_paid: number;
   shipping_email: string | null;
@@ -18,6 +18,8 @@ interface BookOrderDetails {
   is_gift: boolean;
   creation_title?: string;
   artist_name?: string;
+  download_url?: string | null;
+  download_path?: string | null;
 }
 
 interface BookOrderSuccessProps {
@@ -87,6 +89,7 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
           .select(`
             id, order_type, status, amount_paid, shipping_email, shipping_name, is_gift,
             shipping_address, shipping_address2, shipping_city, shipping_state, shipping_zip, shipping_country,
+            download_url, download_path,
             creations!inner(title, artist_name)
           `)
           .eq('stripe_session_id', sessionId)
@@ -110,6 +113,8 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
           is_gift: data.is_gift || false,
           creation_title: (data.creations as { title: string; artist_name: string })?.title,
           artist_name: (data.creations as { title: string; artist_name: string })?.artist_name,
+          download_url: data.download_url,
+          download_path: data.download_path,
         });
       } catch (err) {
         console.error('Failed to fetch order:', err);
@@ -124,7 +129,37 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
     }
   }, [sessionId]);
 
-  const isHardcover = orderDetails?.order_type === 'hardcover';
+  const isHardcover = orderDetails?.order_type === 'hardcover' || orderDetails?.order_type === 'softcover';
+  const isEbook = orderDetails?.order_type === 'ebook';
+
+  // Poll for ebook download URL if order is ebook and not yet completed
+  useEffect(() => {
+    if (!orderDetails || !isEbook || orderDetails.download_url) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from('book_orders')
+          .select('status, download_url, download_path')
+          .eq('id', orderDetails.id)
+          .single();
+
+        if (data?.download_url) {
+          setOrderDetails(prev => prev ? {
+            ...prev,
+            status: data.status,
+            download_url: data.download_url,
+            download_path: data.download_path,
+          } : prev);
+          clearInterval(pollInterval);
+        }
+      } catch {
+        // Silently retry
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [orderDetails?.id, isEbook, orderDetails?.download_url]);
 
   const handleViewCreations = () => {
     window.location.href = '/my-creations';
@@ -181,19 +216,25 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
 
         {/* Title */}
         <h1 className="text-3xl md:text-5xl font-black text-gunmetal text-center mb-4 tracking-tight">
-          {orderDetails?.is_gift && isHardcover
-            ? `Your gift is on its way to ${orderDetails.shipping_name || 'the recipient'}!`
-            : isHardcover
-              ? 'Your book is on its way!'
-              : 'Order Confirmed!'}
+          {isEbook && orderDetails?.download_url
+            ? 'Your Storybook is Ready!'
+            : orderDetails?.is_gift && isHardcover
+              ? `Your gift is on its way to ${orderDetails.shipping_name || 'the recipient'}!`
+              : isHardcover
+                ? 'Your book is on its way!'
+                : 'Order Confirmed!'}
         </h1>
 
         <p className="text-lg md:text-xl text-blue-slate text-center mb-8 font-medium max-w-lg mx-auto">
-          {orderDetails?.is_gift && isHardcover
-            ? "We're printing this special gift now. We'll email you tracking info when it ships!"
-            : isHardcover
-              ? "Magic is happening at the printer. We'll email you tracking info when it ships!"
-              : "Thank you for your order! We're preparing everything now."}
+          {isEbook && orderDetails?.download_url
+            ? "Your digital storybook is ready to download. We've also sent a link to your email."
+            : isEbook
+              ? "We're preparing your digital storybook now. This usually takes less than a minute..."
+              : orderDetails?.is_gift && isHardcover
+                ? "We're printing this special gift now. We'll email you tracking info when it ships!"
+                : isHardcover
+                  ? "Magic is happening at the printer. We'll email you tracking info when it ships!"
+                  : "Thank you for your order! We're preparing everything now."}
         </p>
 
         {/* Order Details Card */}
@@ -220,7 +261,11 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-blue-slate">Format</span>
-                <span className="font-bold text-gunmetal">{isHardcover ? 'Hardcover Book' : 'Digital eBook'}</span>
+                <span className="font-bold text-gunmetal">
+                  {orderDetails?.order_type === 'hardcover' ? 'Hardcover Book'
+                    : orderDetails?.order_type === 'softcover' ? 'Softcover Book'
+                    : 'Digital eBook'}
+                </span>
               </div>
 
               {/* Shipping Address for Hardcover */}
@@ -274,6 +319,42 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
         {error && (
           <div className="bg-red-50 rounded-3xl border-2 border-red-200 p-8 mb-8 text-center">
             <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
+        {/* Ebook Download Section */}
+        {!isLoading && orderDetails && isEbook && (
+          <div className="bg-white rounded-3xl border-2 border-slate-200 p-6 md:p-8 shadow-xl mb-8 text-center">
+            {orderDetails.download_url ? (
+              <>
+                <div className="text-5xl mb-4">📖</div>
+                <h3 className="font-bold text-gunmetal text-lg mb-2">Your Storybook is Ready!</h3>
+                <p className="text-blue-slate text-sm mb-6">
+                  Download your high-quality PDF storybook. This link expires in 7 days.
+                </p>
+                <a
+                  href={orderDetails.download_url}
+                  download
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-pacific-cyan to-blue-500 text-white rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Your Storybook
+                </a>
+                <p className="text-blue-slate/60 text-xs mt-4">
+                  We also sent a download link to your email.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="w-10 h-10 border-4 border-pacific-cyan/30 border-t-pacific-cyan rounded-full animate-spin mx-auto mb-4" />
+                <h3 className="font-bold text-gunmetal text-lg mb-2">Preparing Your Storybook...</h3>
+                <p className="text-blue-slate text-sm">
+                  We're generating your high-quality PDF. This usually takes less than a minute.
+                </p>
+              </>
+            )}
           </div>
         )}
 
@@ -350,15 +431,19 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
               <>
                 <div className="flex gap-4 items-start">
                   <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
-                  <p className="text-white/80">Check your email for the download link</p>
+                  <p className="text-white/80">
+                    {orderDetails?.download_url
+                      ? 'Your storybook PDF is ready — download it above!'
+                      : 'Your high-quality PDF is being generated now...'}
+                  </p>
                 </div>
                 <div className="flex gap-4 items-start">
                   <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
-                  <p className="text-white/80">Download your high-quality PDF</p>
+                  <p className="text-white/80">We also sent a download link to your email</p>
                 </div>
                 <div className="flex gap-4 items-start">
                   <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
-                  <p className="text-white/80">Read and share your magical story!</p>
+                  <p className="text-white/80">Read, print, and share your magical story!</p>
                 </div>
               </>
             )}

@@ -1,62 +1,31 @@
-const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
-
-const BOOK_PRICE_IDS = {
-  ebook: 'price_1SsRkzGzopxGCjLeKjAifMlZ',
-  softcover: 'price_1StV4RGzopxGCjLeSMLjBk7X',
-  hardcover: 'price_1StV7GGzopxGCjLeYMsB3w8T',
-}
+import { LOOKUP_KEYS, getPricesByLookupKeys, formatPrice, StripePrice } from '../_shared/stripe-pricing.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface StripePriceResponse {
-  id: string
-  unit_amount: number
-  currency: string
-  product: string | { name: string }
-}
+function buildPriceResponse(price: StripePrice, fallbackName: string) {
+  const productName = typeof price.product === 'object'
+    ? price.product.name
+    : fallbackName;
 
-interface StripeProductResponse {
-  id: string
-  name: string
-}
-
-async function getStripePrice(priceId: string): Promise<StripePriceResponse> {
-  const response = await fetch(`https://api.stripe.com/v1/prices/${priceId}?expand[]=product`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-    },
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('[get-book-prices] Stripe API error:', response.status, errorText)
-    throw new Error(`Stripe API error (${response.status}): ${errorText}`)
-  }
-
-  return response.json()
-}
-
-function formatPrice(amount: number, currency: string): string {
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  })
-  return formatter.format(amount / 100)
+  return {
+    priceId: price.id,
+    amount: price.unit_amount,
+    currency: price.currency,
+    displayPrice: formatPrice(price.unit_amount, price.currency),
+    productName,
+  };
 }
 
 Deno.serve(async (req) => {
   console.log('[get-book-prices] Request received:', req.method)
 
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // Only allow GET requests
   if (req.method !== 'GET') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
@@ -65,67 +34,30 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Fetch all prices from Stripe in parallel
-    const [ebookPrice, softcoverPrice, hardcoverPrice] = await Promise.all([
-      getStripePrice(BOOK_PRICE_IDS.ebook).catch(err => {
-        console.error('[get-book-prices] Failed to fetch ebook price:', err);
-        return null;
-      }),
-      getStripePrice(BOOK_PRICE_IDS.softcover).catch(err => {
-        console.error('[get-book-prices] Failed to fetch softcover price:', err);
-        return null;
-      }),
-      getStripePrice(BOOK_PRICE_IDS.hardcover).catch(err => {
-        console.error('[get-book-prices] Failed to fetch hardcover price:', err);
-        return null;
-      }),
-    ]);
+    const lookupKeys = [
+      LOOKUP_KEYS.books.digital,
+      LOOKUP_KEYS.books.softcover,
+      LOOKUP_KEYS.books.hardcover,
+    ];
 
-    const response: any = {};
+    const prices = await getPricesByLookupKeys(lookupKeys);
+    const priceMap = new Map<string, StripePrice>(prices.map(p => [p.lookup_key, p]));
 
-    // Add ebook if available
+    const response: Record<string, any> = {};
+
+    const ebookPrice = priceMap.get(LOOKUP_KEYS.books.digital);
     if (ebookPrice) {
-      const productName = typeof ebookPrice.product === 'object'
-        ? ebookPrice.product.name
-        : 'Digital Storybook';
-
-      response.ebook = {
-        priceId: ebookPrice.id,
-        amount: ebookPrice.unit_amount,
-        currency: ebookPrice.currency,
-        displayPrice: formatPrice(ebookPrice.unit_amount, ebookPrice.currency),
-        productName: productName,
-      };
+      response.ebook = buildPriceResponse(ebookPrice, 'Digital Storybook');
     }
 
-    // Add softcover if available
+    const softcoverPrice = priceMap.get(LOOKUP_KEYS.books.softcover);
     if (softcoverPrice) {
-      const productName = typeof softcoverPrice.product === 'object'
-        ? softcoverPrice.product.name
-        : 'Softcover Book';
-
-      response.softcover = {
-        priceId: softcoverPrice.id,
-        amount: softcoverPrice.unit_amount,
-        currency: softcoverPrice.currency,
-        displayPrice: formatPrice(softcoverPrice.unit_amount, softcoverPrice.currency),
-        productName: productName,
-      };
+      response.softcover = buildPriceResponse(softcoverPrice, 'Softcover Book');
     }
 
-    // Add hardcover if available
+    const hardcoverPrice = priceMap.get(LOOKUP_KEYS.books.hardcover);
     if (hardcoverPrice) {
-      const productName = typeof hardcoverPrice.product === 'object'
-        ? hardcoverPrice.product.name
-        : 'Hardcover Book';
-
-      response.hardcover = {
-        priceId: hardcoverPrice.id,
-        amount: hardcoverPrice.unit_amount,
-        currency: hardcoverPrice.currency,
-        displayPrice: formatPrice(hardcoverPrice.unit_amount, hardcoverPrice.currency),
-        productName: productName,
-      };
+      response.hardcover = buildPriceResponse(hardcoverPrice, 'Hardcover Book');
     }
 
     console.log('[get-book-prices] Returning prices:', response);

@@ -1,12 +1,8 @@
+import { LOOKUP_KEYS, getPriceByLookupKey, CreditPackName } from '../_shared/stripe-pricing.ts';
+
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
 
-const PRICE_IDS: Record<string, string> = {
-  starter: 'price_1Ss3YsGzopxGCjLeYPAjs6Mz',
-  popular: 'price_1Ss3YsGzopxGCjLeYPAjs6Mz',  // same for now, update later
-  best_value: 'price_1Ss3YsGzopxGCjLeYPAjs6Mz',  // same for now, update later
-}
-
-const CREDITS: Record<string, number> = {
+const CREDITS: Record<CreditPackName, number> = {
   starter: 3,
   popular: 5,
   best_value: 10,
@@ -124,21 +120,28 @@ Deno.serve(async (req) => {
     const { pack, success_url, cancel_url } = await req.json()
     console.log('[create-checkout] Pack:', pack)
 
-    if (!pack || !PRICE_IDS[pack]) {
+    // Validate pack name
+    const validPacks: CreditPackName[] = ['starter', 'popular', 'best_value'];
+    if (!pack || !validPacks.includes(pack)) {
       return new Response(JSON.stringify({ error: 'Invalid pack' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
+    // Fetch the price dynamically via lookup key
+    const lookupKey = LOOKUP_KEYS.credits[pack as CreditPackName];
+    console.log('[create-checkout] Fetching price for lookup key:', lookupKey)
+    const stripePrice = await getPriceByLookupKey(lookupKey);
+
     console.log('[create-checkout] Creating Stripe session with:', {
-      priceId: PRICE_IDS[pack],
+      priceId: stripePrice.id,
       userId: user.id,
       email: user.email,
     })
 
     const session = await createStripeCheckoutSession({
-      priceId: PRICE_IDS[pack],
+      priceId: stripePrice.id,
       successUrl: success_url || 'https://onceuponadrawing.com/purchase-success?session_id={CHECKOUT_SESSION_ID}',
       cancelUrl: cancel_url || 'https://onceuponadrawing.com/',
       clientReferenceId: user.id,
@@ -146,7 +149,7 @@ Deno.serve(async (req) => {
       metadata: {
         user_id: user.id,
         pack_name: pack,
-        credits: CREDITS[pack].toString(),
+        credits: CREDITS[pack as CreditPackName].toString(),
       },
     })
 
