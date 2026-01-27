@@ -296,8 +296,9 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
 
                   {/* Loading overlay */}
                   {loadingCreationId === creation.id && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                      <div className="w-8 h-8 border-3 border-pacific-cyan/30 border-t-pacific-cyan rounded-full animate-spin" />
+                    <div className="absolute inset-0 bg-gunmetal/70 flex flex-col items-center justify-center">
+                      <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-3" />
+                      <span className="text-white font-bold text-sm">Loading Story...</span>
                     </div>
                   )}
 
