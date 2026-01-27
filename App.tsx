@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppStep, AppState, DrawingAnalysis, ProductType, ShippingInfo, OrderStatus, Order, User } from './types';
-import { analyzeDrawing, generateAnimation, generateStoryImage } from './services/geminiService';
+import { analyzeDrawing, generateAnimation, generateStoryImage, VideoGenerationError } from './services/geminiService';
 import { saveDraft, restoreDraft, clearDraft, hasDraft } from './services/draftStorage';
 import { supabase } from './services/supabaseClient';
 import {
@@ -421,7 +421,21 @@ const App: React.FC = () => {
       
     } catch (err: any) {
       console.error(err);
-      setState(prev => ({ ...prev, step: AppStep.REFINING, error: 'Magic broke! Try again.' }));
+      let errorMsg = "Oops! Something went wrong. Try again!";
+      if (err instanceof VideoGenerationError) {
+        switch (err.type) {
+          case 'content_filtered':
+            errorMsg = "This drawing couldn't be animated. Try a different one!";
+            break;
+          case 'generation_failed':
+            errorMsg = "Our magic machine had trouble. Let's try again!";
+            break;
+          case 'rate_limited':
+            errorMsg = "We're very busy right now. Please wait a minute and try again.";
+            break;
+        }
+      }
+      setState(prev => ({ ...prev, step: AppStep.REFINING, error: errorMsg }));
     }
   };
 

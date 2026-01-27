@@ -2,18 +2,24 @@
 import { supabase } from './supabaseClient';
 import { DrawingAnalysis, Order, ProductType, ShippingInfo } from '../types';
 
+const getMimeTypeFromBase64 = (base64: string): string => {
+  const match = base64.match(/^data:(.+?);base64,/);
+  return match ? match[1] : 'image/png';
+};
+
 export const uploadFile = async (bucket: string, path: string, base64Data: string) => {
+  const mimeType = getMimeTypeFromBase64(base64Data);
   const byteString = atob(base64Data.split(',')[1]);
   const ab = new ArrayBuffer(byteString.length);
   const ia = new Uint8Array(ab);
   for (let i = 0; i < byteString.length; i++) {
     ia[i] = byteString.charCodeAt(i);
   }
-  const blob = new Blob([ab], { type: 'image/png' });
+  const blob = new Blob([ab], { type: mimeType });
 
   const { data, error } = await supabase.storage
     .from(bucket)
-    .upload(path, blob, { contentType: 'image/png', upsert: true });
+    .upload(path, blob, { contentType: mimeType, upsert: true });
 
   if (error) throw error;
   

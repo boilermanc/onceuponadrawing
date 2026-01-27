@@ -1,6 +1,18 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { DrawingAnalysis, StoryPage } from "../types";
+import { logError } from './errorLoggingService';
+
+export class VideoGenerationError extends Error {
+  type: 'content_filtered' | 'generation_failed' | 'rate_limited' | 'unknown';
+
+  constructor(type: VideoGenerationError['type'], message: string) {
+    super(message);
+    this.type = type;
+  }
+}
+
+const VIDEO_GENERATION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 const getBase64Data = (base64: string) => base64.split(',')[1];
 
@@ -114,37 +126,81 @@ export const generateAnimation = async (
   base64Image: string,
   analysis: DrawingAnalysis
 ): Promise<{ videoUrl: string, heroImageUrl: string }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const model = 'veo-3.1-fast-generate-preview';
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const model = 'veo-3.1-fast-generate-preview';
 
-  const prompt = `A magical, high-quality 3D cinematic animation. The character ${analysis.subject} (${analysis.characterAppearance}) is ${analysis.suggestedAction} in a vibrant ${analysis.environment}. Professional lighting.`;
-  
-  let operation = await ai.models.generateVideos({
-    model,
-    prompt,
-    image: {
-      imageBytes: getBase64Data(base64Image),
-      mimeType: 'image/png',
-    },
-    config: {
-      numberOfVideos: 1,
-      resolution: '720p',
-      aspectRatio: '16:9'
+    const prompt = `A magical, high-quality 3D cinematic animation. The character ${analysis.subject} (${analysis.characterAppearance}) is ${analysis.suggestedAction} in a vibrant ${analysis.environment}. Professional lighting.`;
+
+    let operation = await ai.models.generateVideos({
+      model,
+      prompt,
+      image: {
+        imageBytes: getBase64Data(base64Image),
+        mimeType: 'image/png',
+      },
+      config: {
+        numberOfVideos: 1,
+        resolution: '720p',
+        aspectRatio: '16:9'
+      }
+    });
+
+    const startTime = Date.now();
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      if (Date.now() - startTime > VIDEO_GENERATION_TIMEOUT_MS) {
+        const elapsed = Date.now() - startTime;
+        await logError('video_generation_timeout', `Video generation timed out after ${Math.round(elapsed / 1000)}s`, {
+          elapsedMs: elapsed,
+          lastOperationState: operation,
+        });
+        throw new VideoGenerationError('generation_failed', 'Video generation timed out');
+      }
+      operation = await ai.operations.getVideosOperation({ operation: operation });
     }
-  });
 
-  while (!operation.done) {
-    await new Promise(resolve => setTimeout(resolve, 10000));
-    operation = await ai.operations.getVideosOperation({ operation: operation });
+    const generatedVideos = operation.response?.generatedVideos;
+    const downloadLink = generatedVideos?.[0]?.video?.uri;
+
+    if (!downloadLink) {
+      let errorMessage = 'Video generation completed but no video was returned';
+      let errorType: VideoGenerationError['type'] = 'unknown';
+
+      if ((generatedVideos?.[0] as any)?.filterReason || (operation.response as any)?.blockReason) {
+        errorMessage = `Video was filtered: ${(generatedVideos?.[0] as any)?.filterReason ?? (operation.response as any)?.blockReason}`;
+        errorType = 'content_filtered';
+      } else if (!generatedVideos || generatedVideos.length === 0) {
+        errorMessage = 'Video generation returned empty results';
+        errorType = 'generation_failed';
+      } else if (!generatedVideos[0]?.video) {
+        errorMessage = 'Video generation returned a result with no video data';
+        errorType = 'generation_failed';
+      }
+
+      await logError('video_generation_failed', errorMessage, {
+        operationResponse: operation.response,
+      });
+
+      throw new VideoGenerationError(errorType, errorMessage);
+    }
+
+    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+    const blob = await response.blob();
+    const videoUrl = URL.createObjectURL(blob);
+
+    // For MVP, we use the original image as the hero image if we can't extract a frame easily
+    return { videoUrl, heroImageUrl: base64Image };
+  } catch (err) {
+    if (err instanceof VideoGenerationError) {
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    const isRateLimit = message.includes('429') || message.toLowerCase().includes('quota') || message.toLowerCase().includes('rate');
+    await logError('video_generation_error', message, {
+      subject: analysis.subject,
+      suggestedAction: analysis.suggestedAction,
+    });
+    throw new VideoGenerationError(isRateLimit ? 'rate_limited' : 'unknown', message);
   }
-
-  const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-  if (!downloadLink) throw new Error("The magic portal closed!");
-
-  const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
-  const blob = await response.blob();
-  const videoUrl = URL.createObjectURL(blob);
-  
-  // For MVP, we use the original image as the hero image if we can't extract a frame easily
-  return { videoUrl, heroImageUrl: base64Image };
 };

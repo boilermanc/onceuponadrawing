@@ -10,7 +10,20 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd ORDER_FLOW step to separate proof approval from checkout\n\nSplit the checkout flow so BookProof approval leads to a dedicated\nOrderFlow step, making the user journey clearer.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(findstr:*)",
-      "Bash(npx supabase functions deploy:*)"
+      "Bash(npx supabase functions deploy:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(netstat:*)",
+      "Bash(supabase functions deploy:*)",
+      "Bash(ping:*)",
+      "Bash(supabase functions list:*)",
+      "Bash(supabase functions logs:*)",
+      "Bash(supabase functions --help:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(supabase secrets:*)",
+      "Bash(echo:*)",
+      "Bash(npx supabase:*)"
     ]
   }
 }
