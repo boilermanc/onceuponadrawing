@@ -34,6 +34,7 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
   // Fetch creations on mount and when tab becomes visible
   useEffect(() => {
     console.log('[MyCreations] useEffect running...');
+    let isCancelled = false;
     const signal = getSignal();
 
     const fetchData = async () => {
@@ -43,21 +44,11 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
       try {
         console.log('[MyCreations] About to call getCreations...');
         const [creationsData, statusData] = await Promise.all([
-          getCreations(userId, signal).catch(err => {
-            if (isAbortError(err)) return [];
-            throw err;
-          }),
-          canSaveCreation(userId, signal).catch(err => {
-            if (isAbortError(err)) return { canSave: false, savesUsed: 0, limit: 3 } as const;
-            throw err;
-          }),
+          getCreations(userId, signal),
+          canSaveCreation(userId, signal),
         ]);
 
-        // Check if aborted before updating state
-        if (signal.aborted) {
-          console.log('[MyCreations] Request was aborted, skipping state update');
-          return;
-        }
+        if (isCancelled) return;
 
         console.log('[MyCreations] getCreations returned:', creationsData);
         console.log('[MyCreations] statusData returned:', statusData);
@@ -66,6 +57,11 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
         setSaveStatus({ savesUsed: statusData.savesUsed, limit: statusData.limit });
         console.log('[MyCreations] State updated, about to exit try block');
       } catch (err) {
+        if (isCancelled) return;
+        if (err instanceof Error && err.message.toLowerCase().includes('abort')) {
+          console.log('[MyCreations] Request aborted');
+          return;
+        }
         if (isAbortError(err)) {
           console.log('[MyCreations] Request aborted');
           return;
@@ -73,8 +69,7 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
         console.error('[MyCreations] Caught error:', err);
         setError('Failed to load your creations. Please try again.');
       } finally {
-        // Only set loading false if not aborted
-        if (!signal.aborted) {
+        if (!isCancelled) {
           console.log('[MyCreations] Finally block - setting isLoading to false');
           setIsLoading(false);
         }
@@ -82,6 +77,10 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
     };
 
     fetchData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [userId, refreshKey, getSignal]);
 
   const handleCardClick = async (creation: Creation) => {
