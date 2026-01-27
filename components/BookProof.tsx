@@ -177,7 +177,7 @@ const BookProof: React.FC<BookProofProps> = ({
             {/* Front Cover */}
             <div className="w-1/2 h-full relative flex flex-col items-center justify-center text-center p-8" style={{ backgroundColor: coverBg }}>
               <div className="space-y-4">
-                <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight" style={{ color: textHex }}>{analysis.storyTitle}</h3>
+                <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight text-balance" style={{ color: textHex }}>{analysis.storyTitle}</h3>
                 <div className="h-1 w-16 mx-auto rounded-full" style={{ backgroundColor: textHex, opacity: 0.3 }}></div>
                 <p className="text-lg font-serif italic" style={{ color: textHex, opacity: 0.8 }}>by {analysis.artistName}</p>
               </div>
