@@ -67,11 +67,16 @@ interface CreateBookCheckoutRequest {
   creationId: string
   userId: string
   userEmail: string
-  productType: 'ebook' | 'hardcover'
+  productType: 'softcover' | 'hardcover' | 'ebook'
   dedicationText?: string
 
-  // Shipping details (required for hardcover)
+  // Cover customization
+  coverColorId?: string
+  textColorId?: string
+
+  // Shipping details (required for physical books)
   shippingAddress?: ShippingAddress
+  shipping?: { name: string; address1: string; city: string; state: string; zip: string; phone: string; email: string }
   shippingLevelId?: string // Lulu shipping level code (e.g., "MAIL", "PRIORITY_MAIL")
   shippingCost?: number // Shipping cost in cents
 
@@ -163,7 +168,7 @@ async function createStripeCheckoutSession(params: {
 async function createBookOrder(params: {
   userId: string
   creationId: string
-  orderType: 'ebook' | 'hardcover'
+  orderType: 'ebook' | 'hardcover' | 'softcover'
   dedicationText?: string
   amountPaid: number
   stripeSessionId: string
@@ -172,6 +177,8 @@ async function createBookOrder(params: {
   contactEmail?: string
   isGift?: boolean
   billingAddress?: BillingAddress
+  coverColorId?: string
+  textColorId?: string
 }): Promise<{ id: string }> {
   const orderData: any = {
     user_id: params.userId,
@@ -183,10 +190,12 @@ async function createBookOrder(params: {
     stripe_session_id: params.stripeSessionId,
     contact_email: params.contactEmail || null,
     is_gift: params.isGift || false,
+    cover_color_id: params.coverColorId || 'soft-blue',
+    text_color_id: params.textColorId || 'gunmetal',
   }
 
-  // Add shipping information for hardcover orders
-  if (params.orderType === 'hardcover' && params.shippingAddress) {
+  // Add shipping information for physical orders
+  if ((params.orderType === 'hardcover' || params.orderType === 'softcover') && params.shippingAddress) {
     orderData.shipping_name = params.shippingAddress.name
     orderData.shipping_address = params.shippingAddress.street1
     orderData.shipping_address2 = params.shippingAddress.street2 || null
@@ -303,23 +312,37 @@ Deno.serve(async (req) => {
     }
 
     // Validate productType
-    if (body.productType !== 'ebook' && body.productType !== 'hardcover') {
+    if (body.productType !== 'ebook' && body.productType !== 'hardcover' && body.productType !== 'softcover') {
       return new Response(JSON.stringify({ error: 'Invalid product type' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // For hardcover, validate shipping information
-    if (body.productType === 'hardcover') {
-      if (!body.shippingAddress || !body.shippingLevelId || body.shippingCost === undefined || body.bookCost === undefined) {
-        return new Response(JSON.stringify({ 
-          error: 'Hardcover orders require shipping address, shipping level, shipping cost, and book cost' 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+    // Normalize shipping from frontend format if needed
+    let resolvedShippingAddress: ShippingAddress | undefined = body.shippingAddress
+    if (!resolvedShippingAddress && body.shipping) {
+      resolvedShippingAddress = {
+        name: body.shipping.name,
+        street1: body.shipping.address1,
+        city: body.shipping.city,
+        stateCode: body.shipping.state,
+        postalCode: body.shipping.zip,
+        countryCode: 'US',
+        phoneNumber: body.shipping.phone,
+        email: body.shipping.email,
       }
+    }
+
+    // For physical books, validate shipping information
+    const isPhysical = body.productType === 'hardcover' || body.productType === 'softcover'
+    if (isPhysical && !resolvedShippingAddress) {
+      return new Response(JSON.stringify({
+        error: 'Physical book orders require a shipping address'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Calculate total amount
@@ -329,10 +352,19 @@ Deno.serve(async (req) => {
     if (body.productType === 'ebook') {
       totalAmount = 1299 // $12.99 for ebook
       description = 'Once Upon a Drawing - eBook'
+    } else if (body.priceId) {
+      // When using a Stripe price ID, Stripe handles the amount
+      const priceDetails = await getStripePrice(body.priceId)
+      totalAmount = priceDetails.unit_amount
+      description = body.productType === 'softcover'
+        ? 'Once Upon a Drawing - Softcover Book'
+        : 'Once Upon a Drawing - Hardcover Book'
     } else {
-      // Hardcover: book cost + shipping cost
+      // Fallback: book cost + shipping cost
       totalAmount = (body.bookCost || 0) + (body.shippingCost || 0)
-      description = `Once Upon a Drawing - Hardcover Book`
+      description = body.productType === 'softcover'
+        ? 'Once Upon a Drawing - Softcover Book'
+        : 'Once Upon a Drawing - Hardcover Book'
     }
 
     console.log('[create-book-checkout] Total amount:', totalAmount, 'cents')
@@ -387,11 +419,13 @@ Deno.serve(async (req) => {
       creation_id: body.creationId,
       product_type: body.productType,
       dedication_text: body.dedicationText || '',
+      cover_color_id: body.coverColorId || 'soft-blue',
+      text_color_id: body.textColorId || 'gunmetal',
       order_source: 'book_checkout',
     }
 
-    if (body.productType === 'hardcover') {
-      sessionParams.metadata.shipping_level_id = body.shippingLevelId
+    if (isPhysical) {
+      sessionParams.metadata.shipping_level_id = body.shippingLevelId || 'MAIL'
       sessionParams.metadata.book_cost = body.bookCost?.toString() || '0'
       sessionParams.metadata.shipping_cost = body.shippingCost?.toString() || '0'
     }
@@ -452,15 +486,17 @@ Deno.serve(async (req) => {
     const bookOrder = await createBookOrder({
       userId: body.userId,
       creationId: body.creationId,
-      orderType: body.productType,
+      orderType: body.productType === 'softcover' ? 'softcover' : body.productType,
       dedicationText: body.dedicationText,
       amountPaid: totalAmount,
       stripeSessionId: session.id,
-      shippingAddress: body.shippingAddress,
-      shippingLevelId: body.shippingLevelId,
+      shippingAddress: resolvedShippingAddress,
+      shippingLevelId: body.shippingLevelId || 'MAIL',
       contactEmail: 'team@sproutify.app', // Always use team email for Lulu order issues
       isGift: body.isGift,
       billingAddress: body.billingAddress,
+      coverColorId: body.coverColorId || 'soft-blue',
+      textColorId: body.textColorId || 'gunmetal',
     })
     console.log('[create-book-checkout] Book order created:', bookOrder.id)
 

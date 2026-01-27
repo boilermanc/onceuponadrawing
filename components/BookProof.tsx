@@ -132,7 +132,7 @@ const BookProof: React.FC<BookProofProps> = ({
             <h3 className="text-xl font-black text-gunmetal uppercase tracking-[0.3em]">Customize Your Cover</h3>
             <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
               <div className="text-center">
-                <p className="text-[9px] font-black text-silver uppercase tracking-[0.3em] mb-2">Cover Color</p>
+                <p className="text-[9px] font-black text-gunmetal/70 uppercase tracking-[0.3em] mb-2">Cover Color</p>
                 <div className="flex gap-2">
                   {COVER_COLORS.map(color => (
                     <button
@@ -147,7 +147,7 @@ const BookProof: React.FC<BookProofProps> = ({
               </div>
               <div className="hidden sm:block w-px h-10 bg-silver/30"></div>
               <div className="text-center">
-                <p className="text-[9px] font-black text-silver uppercase tracking-[0.3em] mb-2">Text Color</p>
+                <p className="text-[9px] font-black text-gunmetal/70 uppercase tracking-[0.3em] mb-2">Text Color</p>
                 <div className="flex gap-2">
                   {TEXT_COLORS.map(color => (
                     <button
