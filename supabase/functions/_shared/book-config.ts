@@ -103,6 +103,31 @@ export function calculateRequiredPages(storyPageCount: number): number {
 }
 
 /**
+ * Cover color options
+ */
+export interface CoverColor {
+  id: string;
+  name: string;
+  hex: string;
+  rgb: { r: number; g: number; b: number };
+}
+
+export const COVER_COLORS: CoverColor[] = [
+  { id: 'soft-blue', name: 'Soft Blue', hex: '#E0F2FE', rgb: { r: 0.878, g: 0.949, b: 0.996 } },
+  { id: 'cream', name: 'Cream', hex: '#FEF9E7', rgb: { r: 0.996, g: 0.976, b: 0.906 } },
+  { id: 'sage', name: 'Sage', hex: '#D5E8D4', rgb: { r: 0.835, g: 0.910, b: 0.831 } },
+  { id: 'blush', name: 'Blush', hex: '#FCE4EC', rgb: { r: 0.988, g: 0.894, b: 0.925 } },
+  { id: 'lavender', name: 'Lavender', hex: '#E8DEF8', rgb: { r: 0.910, g: 0.871, b: 0.973 } },
+  { id: 'buttercup', name: 'Buttercup', hex: '#FFF9C4', rgb: { r: 1.0, g: 0.976, b: 0.769 } },
+];
+
+export const DEFAULT_COVER_COLOR = COVER_COLORS[0]; // Soft Blue
+
+export function getCoverColorById(id: string): CoverColor {
+  return COVER_COLORS.find(c => c.id === id) || DEFAULT_COVER_COLOR;
+}
+
+/**
  * Default book config (for backward compatibility)
  */
 export const BOOK_CONFIG = {
