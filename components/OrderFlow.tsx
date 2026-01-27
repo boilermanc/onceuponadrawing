@@ -23,11 +23,12 @@ interface OrderFlowProps {
   creationId: string;
   userEmail: string;
   isGift?: boolean;
+  coverColorId?: string;
   onClose: () => void;
   onComplete: (product: ProductType, dedication: string, shipping?: ShippingInfo) => void;
 }
 
-const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, onClose, onComplete }) => {
+const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, coverColorId, onClose, onComplete }) => {
   const [step, setStep] = useState<'PRODUCT' | 'DEDICATION' | 'SHIPPING' | 'REVIEW'>('PRODUCT');
   const [product, setProduct] = useState<ProductType>(ProductType.SOFTCOVER);
   const [dedication, setDedication] = useState(analysis.dedication || '');
@@ -110,6 +111,16 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
           dedicationText: dedication || undefined,
           userEmail,
           isGift: isGift || false,
+          coverColorId: coverColorId || 'soft-blue',
+          shipping: {
+            name: shipping.fullName,
+            address1: shipping.address1,
+            city: shipping.city,
+            state: shipping.state,
+            zip: shipping.zip,
+            phone: shipping.phone,
+            email: shipping.email,
+          },
         }),
       });
 
@@ -286,7 +297,12 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-blue-slate uppercase mb-2 block tracking-widest">State / Province</label>
-                  <input type="text" placeholder="CA" value={shipping.state} onChange={e => setShipping({...shipping, state: e.target.value})} className="w-full p-4 border-2 border-silver rounded-2xl focus:border-pacific-cyan outline-none font-bold text-gunmetal shadow-sm" />
+                  <select value={shipping.state} onChange={e => setShipping({...shipping, state: e.target.value})} className="w-full p-4 border-2 border-silver rounded-2xl focus:border-pacific-cyan outline-none font-bold text-gunmetal shadow-sm bg-white appearance-none cursor-pointer">
+                    <option value="">Select...</option>
+                    {['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','PR','VI','GU','AS','MP'].map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-blue-slate uppercase mb-2 block tracking-widest">Zip / Postcode</label>
@@ -325,6 +341,15 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                   <div className="py-4 border-b border-silver">
                     <p className="text-[10px] font-black text-blue-slate uppercase tracking-widest mb-2">Dedication</p>
                     <p className="text-gunmetal font-serif italic">"{dedication}"</p>
+                  </div>
+                )}
+
+                {shipping.fullName && (
+                  <div className="py-4 border-b border-silver">
+                    <p className="text-[10px] font-black text-blue-slate uppercase tracking-widest mb-2">Ship To</p>
+                    <p className="text-gunmetal font-bold text-sm">{shipping.fullName}</p>
+                    <p className="text-blue-slate text-xs">{shipping.address1}</p>
+                    <p className="text-blue-slate text-xs">{shipping.city}, {shipping.state} {shipping.zip}</p>
                   </div>
                 )}
 

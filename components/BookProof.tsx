@@ -4,12 +4,27 @@ import { DrawingAnalysis } from '../types';
 import { useToast } from './ui/Toast';
 import Button from './ui/Button';
 
+interface CoverColor {
+  id: string;
+  name: string;
+  hex: string;
+}
+
+const COVER_COLORS: CoverColor[] = [
+  { id: 'soft-blue', name: 'Soft Blue', hex: '#E0F2FE' },
+  { id: 'cream', name: 'Cream', hex: '#FEF9E7' },
+  { id: 'sage', name: 'Sage', hex: '#D5E8D4' },
+  { id: 'blush', name: 'Blush', hex: '#FCE4EC' },
+  { id: 'lavender', name: 'Lavender', hex: '#E8DEF8' },
+  { id: 'buttercup', name: 'Buttercup', hex: '#FFF9C4' },
+];
+
 interface BookProofProps {
   analysis: DrawingAnalysis;
   originalImage: string;
   heroImage: string;
   onUpdate: (updates: Partial<DrawingAnalysis>) => void;
-  onApprove: () => void;
+  onApprove: (coverColorId: string) => void;
   onBack: () => void;
 }
 
@@ -24,6 +39,7 @@ const BookProof: React.FC<BookProofProps> = ({
   const [spreadIndex, setSpreadIndex] = useState(0);
   const [visitedSpreads, setVisitedSpreads] = useState<Set<number>>(new Set([0]));
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [selectedCoverColor, setSelectedCoverColor] = useState<string>('soft-blue');
   const { showToast } = useToast();
 
   // 1 spread for Intro, 1 for Title/Dedication, 12 for Story, 1 for End/Hero, 1 for About/Colophon, 2 for Sketch/Endpapers
@@ -49,7 +65,7 @@ const BookProof: React.FC<BookProofProps> = ({
 
   const handleConfirmApprove = () => {
     setShowConfirmation(false);
-    onApprove();
+    onApprove(selectedCoverColor);
   };
 
   const PageNumber = ({ num, side }: { num: number, side: 'left' | 'right' }) => (
@@ -118,15 +134,13 @@ const BookProof: React.FC<BookProofProps> = ({
             </div>
           </TextPage>
           <TextPage side="right">
-            <div className="w-full max-w-sm">
-              <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-8">Personal Dedication</p>
-              <textarea 
-                className="w-full text-center italic font-serif text-xl text-gunmetal focus:ring-4 focus:ring-pacific-cyan/10 rounded-3xl p-6 resize-none h-56 bg-white/50 border-2 border-silver/20 shadow-inner outline-none transition-all"
-                value={analysis.dedication || ''}
-                placeholder="Write your dedication here..."
-                onChange={e => onUpdate({ dedication: e.target.value })}
-              />
-              <p className="mt-4 text-[9px] text-silver font-bold italic">Character limit: Heartfelt</p>
+            <div className="w-full max-w-sm space-y-6">
+              <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em]">Personal Dedication</p>
+              <div className="w-full h-56 rounded-3xl border-2 border-dashed border-silver/30 bg-white/30 flex flex-col items-center justify-center p-6">
+                <span className="text-4xl mb-4 opacity-40">✍️</span>
+                <p className="text-sm font-bold text-silver/60 text-center">Your dedication will appear here</p>
+                <p className="text-[10px] text-silver/40 mt-2 text-center">You'll add this during the order process</p>
+              </div>
             </div>
           </TextPage>
         </div>
@@ -292,6 +306,25 @@ const BookProof: React.FC<BookProofProps> = ({
             style={{ width: `${(visitedSpreads.size / totalSpreads) * 100}%` }}
           />
         </div>
+      </div>
+
+      {/* Cover Color Picker */}
+      <div className="mt-6 mb-2 w-full max-w-md text-center">
+        <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-4">Choose Your Cover Color</p>
+        <div className="flex justify-center gap-3 flex-wrap">
+          {COVER_COLORS.map(color => (
+            <button
+              key={color.id}
+              onClick={() => setSelectedCoverColor(color.id)}
+              className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 ${selectedCoverColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'}`}
+              style={{ backgroundColor: color.hex }}
+              title={color.name}
+            />
+          ))}
+        </div>
+        <p className="text-[10px] text-silver/60 mt-2 font-bold">
+          {COVER_COLORS.find(c => c.id === selectedCoverColor)?.name || 'Soft Blue'}
+        </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-6 mt-4 w-full max-w-md">
