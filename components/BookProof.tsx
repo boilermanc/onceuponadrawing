@@ -17,6 +17,8 @@ const COVER_COLORS: CoverColor[] = [
   { id: 'blush', name: 'Blush', hex: '#FCE4EC' },
   { id: 'lavender', name: 'Lavender', hex: '#E8DEF8' },
   { id: 'buttercup', name: 'Buttercup', hex: '#FFF9C4' },
+  { id: 'black', name: 'Black', hex: '#1A1A1A' },
+  { id: 'navy', name: 'Navy', hex: '#1B2A4A' },
 ];
 
 interface TextColor {
@@ -31,6 +33,7 @@ const TEXT_COLORS: TextColor[] = [
   { id: 'navy', name: 'Navy', hex: '#1B2A4A' },
   { id: 'burgundy', name: 'Burgundy', hex: '#6B2737' },
   { id: 'forest', name: 'Forest', hex: '#2D4A3E' },
+  { id: 'gold', name: 'Gold', hex: '#C5A55A' },
 ];
 
 interface BookProofProps {
@@ -124,6 +127,40 @@ const BookProof: React.FC<BookProofProps> = ({
       const textHex = TEXT_COLORS.find(c => c.id === selectedTextColor)?.hex || '#2D3A3A';
       return (
         <div className="flex flex-col w-full h-full">
+          {/* Title and color pickers above the spread */}
+          <div className="mb-4 text-center space-y-3">
+            <p className="text-[10px] font-black text-silver uppercase tracking-[0.4em]">Customize Your Cover</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <div className="text-center">
+                <p className="text-[9px] font-black text-silver uppercase tracking-[0.3em] mb-2">Cover Color</p>
+                <div className="flex gap-2">
+                  {COVER_COLORS.map(color => (
+                    <button
+                      key={color.id}
+                      onClick={() => setSelectedCoverColor(color.id)}
+                      className={`w-8 h-8 rounded-full border-3 transition-all hover:scale-110 ${selectedCoverColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'} ${color.id === 'black' || color.id === 'navy' ? 'ring-1 ring-silver/20' : ''}`}
+                      style={{ backgroundColor: color.hex }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-[9px] font-black text-silver uppercase tracking-[0.3em] mb-2">Text Color</p>
+                <div className="flex gap-2">
+                  {TEXT_COLORS.map(color => (
+                    <button
+                      key={color.id}
+                      onClick={() => setSelectedTextColor(color.id)}
+                      className={`w-8 h-8 rounded-full border-3 transition-all hover:scale-110 ${selectedTextColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'} ${color.id === 'white' || color.id === 'gold' ? 'ring-1 ring-silver/30' : ''}`}
+                      style={{ backgroundColor: color.hex }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-1 w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
             {/* Back Cover */}
             <div className="w-1/2 h-full relative flex flex-col items-center justify-center text-center p-8 border-r" style={{ backgroundColor: coverBg }}>
@@ -137,49 +174,14 @@ const BookProof: React.FC<BookProofProps> = ({
               </div>
             </div>
             {/* Front Cover */}
-            <div className="w-1/2 h-full relative flex flex-col items-center justify-center text-center p-8 overflow-hidden" style={{ backgroundColor: coverBg }}>
-              {/* Faded hero background */}
-              <div className="absolute inset-0 opacity-15">
-                <img src={heroImage} className="w-full h-full object-cover" alt="" />
-              </div>
-              <div className="relative z-10 space-y-4">
+            <div className="w-1/2 h-full relative flex flex-col items-center justify-center text-center p-8" style={{ backgroundColor: coverBg }}>
+              <div className="space-y-4">
                 <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight" style={{ color: textHex }}>{analysis.storyTitle}</h3>
                 <div className="h-1 w-16 mx-auto rounded-full" style={{ backgroundColor: textHex, opacity: 0.3 }}></div>
                 <p className="text-lg font-serif italic" style={{ color: textHex, opacity: 0.8 }}>by {analysis.artistName}</p>
               </div>
               <div className="absolute bottom-4 left-0 right-0 text-center">
                 <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-20" style={{ color: textHex }}>Front Cover</p>
-              </div>
-            </div>
-          </div>
-          {/* Color pickers below the spread */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <div className="text-center">
-              <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-2">Cover Color</p>
-              <div className="flex gap-2">
-                {COVER_COLORS.map(color => (
-                  <button
-                    key={color.id}
-                    onClick={() => setSelectedCoverColor(color.id)}
-                    className={`w-9 h-9 rounded-full border-3 transition-all hover:scale-110 ${selectedCoverColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'}`}
-                    style={{ backgroundColor: color.hex }}
-                    title={color.name}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="text-center">
-              <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-2">Text Color</p>
-              <div className="flex gap-2">
-                {TEXT_COLORS.map(color => (
-                  <button
-                    key={color.id}
-                    onClick={() => setSelectedTextColor(color.id)}
-                    className={`w-9 h-9 rounded-full border-3 transition-all hover:scale-110 ${selectedTextColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'} ${color.id === 'white' ? 'ring-1 ring-silver/30' : ''}`}
-                    style={{ backgroundColor: color.hex }}
-                    title={color.name}
-                  />
-                ))}
               </div>
             </div>
           </div>
