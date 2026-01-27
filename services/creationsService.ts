@@ -503,3 +503,28 @@ export async function getCreation(
     page_image_urls: pageImageUrls,
   };
 }
+
+/**
+ * Record that a user approved the book proof for printing.
+ */
+export async function recordProofApproval(
+  userId: string,
+  creationId: string
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('creations')
+    .update({
+      proof_approved_at: new Date().toISOString(),
+      proof_approved_by: userId,
+    })
+    .eq('id', creationId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Failed to record proof approval:', error);
+    return false;
+  }
+
+  console.log('[creationsService] Proof approval recorded for creation:', creationId);
+  return true;
+}

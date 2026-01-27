@@ -11,7 +11,7 @@ import {
   createOrder,
   getProfile
 } from './services/supabaseService';
-import { canSaveCreation, saveCreation, CreationWithSignedUrls } from './services/creationsService';
+import { canSaveCreation, saveCreation, recordProofApproval, CreationWithSignedUrls } from './services/creationsService';
 import { getCreditBalance, canCreate, useCredit, CreditBalance } from './services/creditsService';
 import { createCheckout } from './services/stripeService';
 import { useVisibilityRefresh, isAbortError } from './hooks/useVisibilityRefresh';
@@ -736,7 +736,11 @@ const App: React.FC = () => {
                 originalImage={state.originalImage!}
                 heroImage={state.heroImageUrl || state.originalImage!}
                 onUpdate={handleUpdateAnalysis}
-                onApprove={() => {
+                onApprove={async () => {
+                  const creationId = viewingCreation?.id || currentCreationId;
+                  if (creationId && state.user) {
+                    await recordProofApproval(state.user.id, creationId);
+                  }
                   setState(prev => ({...prev, step: AppStep.ORDER_FLOW}));
                 }}
                 onBack={() => setState(prev => ({...prev, step: AppStep.PRODUCT_SELECT}))}

@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { DrawingAnalysis } from '../types';
+import { useToast } from './ui/Toast';
 import Button from './ui/Button';
 
 interface BookProofProps {
@@ -21,12 +22,35 @@ const BookProof: React.FC<BookProofProps> = ({
   onBack
 }) => {
   const [spreadIndex, setSpreadIndex] = useState(0);
-  
-  // 1 spread for Intro, 1 for Title/Dedication, 12 for Story, 1 for End/Hero, 1 for About/Colophon, 2 for Sketch/Endpapers
-  const totalSpreads = 18; 
+  const [visitedSpreads, setVisitedSpreads] = useState<Set<number>>(new Set([0]));
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const { showToast } = useToast();
 
-  const handleNext = () => setSpreadIndex(prev => Math.min(prev + 1, totalSpreads - 1));
-  const handlePrev = () => setSpreadIndex(prev => Math.max(prev - 1, 0));
+  // 1 spread for Intro, 1 for Title/Dedication, 12 for Story, 1 for End/Hero, 1 for About/Colophon, 2 for Sketch/Endpapers
+  const totalSpreads = 18;
+  const allSpreadsViewed = visitedSpreads.size >= totalSpreads;
+
+  const navigateTo = useCallback((index: number) => {
+    setSpreadIndex(index);
+    setVisitedSpreads(prev => new Set(prev).add(index));
+  }, []);
+
+  const handleNext = () => navigateTo(Math.min(spreadIndex + 1, totalSpreads - 1));
+  const handlePrev = () => navigateTo(Math.max(spreadIndex - 1, 0));
+
+  const handleApproveClick = () => {
+    if (!allSpreadsViewed) {
+      const remaining = totalSpreads - visitedSpreads.size;
+      showToast('warning', 'Review All Pages First', `Please view all spreads before approving. ${remaining} spread${remaining === 1 ? '' : 's'} remaining.`);
+      return;
+    }
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmApprove = () => {
+    setShowConfirmation(false);
+    onApprove();
+  };
 
   const PageNumber = ({ num, side }: { num: number, side: 'left' | 'right' }) => (
     <div className={`absolute bottom-6 ${side === 'left' ? 'left-8' : 'right-8'} text-[10px] font-black text-silver/60 uppercase tracking-[0.3em] z-20`}>
@@ -248,23 +272,67 @@ const BookProof: React.FC<BookProofProps> = ({
             {Array.from({ length: totalSpreads }).map((_, i) => (
                 <button 
                   key={i} 
-                  onClick={() => setSpreadIndex(i)}
+                  onClick={() => navigateTo(i)}
                   className={`h-2 transition-all rounded-full ${i === spreadIndex ? 'bg-pacific-cyan w-10 shadow-[0_0_10px_rgba(98,146,158,0.5)]' : 'bg-silver/40 w-2 hover:bg-silver'}`} 
                 />
             ))}
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-6 mt-8 w-full max-w-md">
+      {/* Progress indicator */}
+      <div className="mt-8 mb-4 text-center">
+        <p className="text-xs font-bold text-silver uppercase tracking-widest">
+          {allSpreadsViewed
+            ? 'All spreads reviewed'
+            : `${visitedSpreads.size} of ${totalSpreads} spreads reviewed`}
+        </p>
+        <div className="w-full max-w-md mx-auto mt-2 h-1.5 bg-silver/20 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-pacific-cyan rounded-full transition-all duration-500"
+            style={{ width: `${(visitedSpreads.size / totalSpreads) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-6 mt-4 w-full max-w-md">
         <Button variant="outline" onClick={onBack} className="flex-1">← Re-Select Edition</Button>
-        <Button onClick={onApprove} size="lg" className="flex-[2] py-6 shadow-2xl">
-          Everything Looks Perfect! ✨
+        <Button
+          onClick={handleApproveClick}
+          size="lg"
+          className={`flex-[2] py-6 shadow-2xl transition-opacity ${!allSpreadsViewed ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {allSpreadsViewed ? 'Approve for Printing' : `Review All Spreads (${visitedSpreads.size}/${totalSpreads})`}
         </Button>
       </div>
 
       <p className="mt-12 text-[10px] text-silver font-black uppercase tracking-[0.5em] animate-pulse">
         Secure Printing Protocol Active
       </p>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full mx-4 p-8 animate-in zoom-in-95 duration-300">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-soft-gold/10 rounded-full flex items-center justify-center text-3xl mx-auto">
+                📖
+              </div>
+              <h3 className="text-2xl font-black text-gunmetal tracking-tight">Approve This Book?</h3>
+              <p className="text-blue-slate text-sm leading-relaxed">
+                By approving, you confirm that you have reviewed all {totalSpreads * 2} pages and are satisfied with the content, images, and text. This is what will be sent to the printer.
+              </p>
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" onClick={() => setShowConfirmation(false)} className="flex-1">
+                  Go Back
+                </Button>
+                <Button onClick={handleConfirmApprove} size="lg" className="flex-[2]">
+                  Yes, Approve for Printing
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
