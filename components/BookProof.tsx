@@ -19,12 +19,26 @@ const COVER_COLORS: CoverColor[] = [
   { id: 'buttercup', name: 'Buttercup', hex: '#FFF9C4' },
 ];
 
+interface TextColor {
+  id: string;
+  name: string;
+  hex: string;
+}
+
+const TEXT_COLORS: TextColor[] = [
+  { id: 'gunmetal', name: 'Dark', hex: '#2D3A3A' },
+  { id: 'white', name: 'White', hex: '#FFFFFF' },
+  { id: 'navy', name: 'Navy', hex: '#1B2A4A' },
+  { id: 'burgundy', name: 'Burgundy', hex: '#6B2737' },
+  { id: 'forest', name: 'Forest', hex: '#2D4A3E' },
+];
+
 interface BookProofProps {
   analysis: DrawingAnalysis;
   originalImage: string;
   heroImage: string;
   onUpdate: (updates: Partial<DrawingAnalysis>) => void;
-  onApprove: (coverColorId: string) => void;
+  onApprove: (coverColorId: string, textColorId: string) => void;
   onBack: () => void;
 }
 
@@ -40,10 +54,11 @@ const BookProof: React.FC<BookProofProps> = ({
   const [visitedSpreads, setVisitedSpreads] = useState<Set<number>>(new Set([0]));
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedCoverColor, setSelectedCoverColor] = useState<string>('soft-blue');
+  const [selectedTextColor, setSelectedTextColor] = useState<string>('gunmetal');
   const { showToast } = useToast();
 
-  // 1 spread for Intro, 1 for Title/Dedication, 12 for Story, 1 for End/Hero, 1 for About/Colophon, 2 for Sketch/Endpapers
-  const totalSpreads = 18;
+  // 1 spread for Cover Preview, 1 for Intro, 1 for Title/Dedication, 12 for Story, 1 for End/Hero, 1 for About/Colophon, 2 for Sketch/Endpapers
+  const totalSpreads = 19;
   const allSpreadsViewed = visitedSpreads.size >= totalSpreads;
 
   const navigateTo = useCallback((index: number) => {
@@ -65,7 +80,7 @@ const BookProof: React.FC<BookProofProps> = ({
 
   const handleConfirmApprove = () => {
     setShowConfirmation(false);
-    onApprove(selectedCoverColor);
+    onApprove(selectedCoverColor, selectedTextColor);
   };
 
   const PageNumber = ({ num, side }: { num: number, side: 'left' | 'right' }) => (
@@ -104,7 +119,76 @@ const BookProof: React.FC<BookProofProps> = ({
     );
 
     if (index === 0) {
-      // Spread 0: Half-title | Original Art
+      // Spread 0: Cover Preview (Back Cover | Front Cover)
+      const coverBg = COVER_COLORS.find(c => c.id === selectedCoverColor)?.hex || '#E0F2FE';
+      const textHex = TEXT_COLORS.find(c => c.id === selectedTextColor)?.hex || '#2D3A3A';
+      return (
+        <div className="flex flex-col w-full h-full">
+          <div className="flex flex-1 w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
+            {/* Back Cover */}
+            <div className="w-1/2 h-full relative flex flex-col items-center justify-center text-center p-8 border-r" style={{ backgroundColor: coverBg }}>
+              <div className="space-y-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40" style={{ color: textHex }}>Once Upon a Drawing</p>
+                <div className="w-10 h-0.5 mx-auto rounded-full opacity-20" style={{ backgroundColor: textHex }}></div>
+                <p className="text-[9px] font-bold italic opacity-30" style={{ color: textHex }}>Where every child is an author</p>
+              </div>
+              <div className="absolute bottom-4 left-0 right-0 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-20" style={{ color: textHex }}>Back Cover</p>
+              </div>
+            </div>
+            {/* Front Cover */}
+            <div className="w-1/2 h-full relative flex flex-col items-center justify-center text-center p-8 overflow-hidden" style={{ backgroundColor: coverBg }}>
+              {/* Faded hero background */}
+              <div className="absolute inset-0 opacity-15">
+                <img src={heroImage} className="w-full h-full object-cover" alt="" />
+              </div>
+              <div className="relative z-10 space-y-4">
+                <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-tight" style={{ color: textHex }}>{analysis.storyTitle}</h3>
+                <div className="h-1 w-16 mx-auto rounded-full" style={{ backgroundColor: textHex, opacity: 0.3 }}></div>
+                <p className="text-lg font-serif italic" style={{ color: textHex, opacity: 0.8 }}>by {analysis.artistName}</p>
+              </div>
+              <div className="absolute bottom-4 left-0 right-0 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.3em] opacity-20" style={{ color: textHex }}>Front Cover</p>
+              </div>
+            </div>
+          </div>
+          {/* Color pickers below the spread */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <div className="text-center">
+              <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-2">Cover Color</p>
+              <div className="flex gap-2">
+                {COVER_COLORS.map(color => (
+                  <button
+                    key={color.id}
+                    onClick={() => setSelectedCoverColor(color.id)}
+                    className={`w-9 h-9 rounded-full border-3 transition-all hover:scale-110 ${selectedCoverColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'}`}
+                    style={{ backgroundColor: color.hex }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-2">Text Color</p>
+              <div className="flex gap-2">
+                {TEXT_COLORS.map(color => (
+                  <button
+                    key={color.id}
+                    onClick={() => setSelectedTextColor(color.id)}
+                    className={`w-9 h-9 rounded-full border-3 transition-all hover:scale-110 ${selectedTextColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'} ${color.id === 'white' ? 'ring-1 ring-silver/30' : ''}`}
+                    style={{ backgroundColor: color.hex }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (index === 1) {
+      // Spread 1: Half-title | Original Art
       return (
         <div className="flex h-full w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white perspective-2000 preserve-3d">
           <TextPage side="left">
@@ -118,8 +202,8 @@ const BookProof: React.FC<BookProofProps> = ({
       );
     }
 
-    if (index === 1) {
-      // Spread 1: Title Page | Dedication
+    if (index === 2) {
+      // Spread 2: Title Page | Dedication
       return (
         <div className="flex h-full w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
           <TextPage side="left">
@@ -147,9 +231,9 @@ const BookProof: React.FC<BookProofProps> = ({
       );
     }
 
-    if (index >= 2 && index <= 13) {
-      // Spreads 2-13: Story Segments (Image Left | Text Right)
-      const storyIdx = index - 2;
+    if (index >= 3 && index <= 14) {
+      // Spreads 3-14: Story Segments (Image Left | Text Right)
+      const storyIdx = index - 3;
       const page = analysis.pages[storyIdx];
       return (
         <div className="flex h-full w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
@@ -167,8 +251,8 @@ const BookProof: React.FC<BookProofProps> = ({
       );
     }
 
-    if (index === 14) {
-      // Spread 14: "The End" | Hero Image
+    if (index === 15) {
+      // Spread 15: "The End" | Hero Image
       return (
         <div className="flex h-full w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
           <TextPage side="left">
@@ -182,8 +266,8 @@ const BookProof: React.FC<BookProofProps> = ({
       );
     }
 
-    if (index === 15) {
-      // Spread 15: About Artist | Colophon
+    if (index === 16) {
+      // Spread 16: About Artist | Colophon
       return (
         <div className="flex h-full w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
           <TextPage side="left">
@@ -306,25 +390,6 @@ const BookProof: React.FC<BookProofProps> = ({
             style={{ width: `${(visitedSpreads.size / totalSpreads) * 100}%` }}
           />
         </div>
-      </div>
-
-      {/* Cover Color Picker */}
-      <div className="mt-6 mb-2 w-full max-w-md text-center">
-        <p className="text-[10px] font-black text-silver uppercase tracking-[0.3em] mb-4">Choose Your Cover Color</p>
-        <div className="flex justify-center gap-3 flex-wrap">
-          {COVER_COLORS.map(color => (
-            <button
-              key={color.id}
-              onClick={() => setSelectedCoverColor(color.id)}
-              className={`w-12 h-12 rounded-full border-4 transition-all hover:scale-110 ${selectedCoverColor === color.id ? 'border-pacific-cyan scale-110 shadow-lg' : 'border-white shadow-md'}`}
-              style={{ backgroundColor: color.hex }}
-              title={color.name}
-            />
-          ))}
-        </div>
-        <p className="text-[10px] text-silver/60 mt-2 font-bold">
-          {COVER_COLORS.find(c => c.id === selectedCoverColor)?.name || 'Soft Blue'}
-        </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-6 mt-4 w-full max-w-md">

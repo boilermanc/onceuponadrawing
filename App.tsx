@@ -70,6 +70,7 @@ const App: React.FC = () => {
   const [orderBookLoading, setOrderBookLoading] = useState(false);
   const [isGiftOrder, setIsGiftOrder] = useState(false);
   const [selectedCoverColor, setSelectedCoverColor] = useState<string>('soft-blue');
+  const [selectedTextColor, setSelectedTextColor] = useState<string>('gunmetal');
 
   // Credit system state
   const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
@@ -772,8 +773,9 @@ const App: React.FC = () => {
                 originalImage={state.originalImage!}
                 heroImage={state.heroImageUrl || state.originalImage!}
                 onUpdate={handleUpdateAnalysis}
-                onApprove={async (coverColorId: string) => {
+                onApprove={async (coverColorId: string, textColorId: string) => {
                   setSelectedCoverColor(coverColorId);
+                  setSelectedTextColor(textColorId);
                   const creationId = viewingCreation?.id || currentCreationId;
                   if (creationId && state.user) {
                     await recordProofApproval(state.user.id, creationId);
@@ -791,6 +793,7 @@ const App: React.FC = () => {
                 userEmail={state.user.email}
                 isGift={isGiftOrder}
                 coverColorId={selectedCoverColor}
+                textColorId={selectedTextColor}
                 onClose={() => setState(prev => ({...prev, step: AppStep.CHECKOUT}))}
                 onComplete={(product, dedication, shipping) => {
                   handleOrderComplete(product, dedication, shipping);

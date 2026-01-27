@@ -24,11 +24,12 @@ interface OrderFlowProps {
   userEmail: string;
   isGift?: boolean;
   coverColorId?: string;
+  textColorId?: string;
   onClose: () => void;
   onComplete: (product: ProductType, dedication: string, shipping?: ShippingInfo) => void;
 }
 
-const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, coverColorId, onClose, onComplete }) => {
+const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, coverColorId, textColorId, onClose, onComplete }) => {
   const [step, setStep] = useState<'PRODUCT' | 'DEDICATION' | 'SHIPPING' | 'REVIEW'>('PRODUCT');
   const [product, setProduct] = useState<ProductType>(ProductType.SOFTCOVER);
   const [dedication, setDedication] = useState(analysis.dedication || '');
@@ -112,6 +113,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
           userEmail,
           isGift: isGift || false,
           coverColorId: coverColorId || 'soft-blue',
+          textColorId: textColorId || 'gunmetal',
           shipping: {
             name: shipping.fullName,
             address1: shipping.address1,
