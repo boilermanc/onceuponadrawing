@@ -9,7 +9,7 @@ interface ConfirmationProps {
 }
 
 const Confirmation: React.FC<ConfirmationProps> = ({ order, onNew }) => {
-  const isEbook = order.productType === ProductType.EBOOK;
+  const isEbook = false; // Ebook option removed; all orders are physical books
 
   return (
     <div className="max-w-4xl mx-auto py-16 px-6 text-center animate-in fade-in zoom-in-95 duration-1000 relative">

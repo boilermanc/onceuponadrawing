@@ -13,7 +13,7 @@ interface BookPrice {
 }
 
 interface BookPricesResponse {
-  ebook: BookPrice | null;
+  softcover: BookPrice | null;
   hardcover: BookPrice | null;
 }
 
@@ -22,13 +22,14 @@ interface OrderFlowProps {
   userId: string;
   creationId: string;
   userEmail: string;
+  isGift?: boolean;
   onClose: () => void;
   onComplete: (product: ProductType, dedication: string, shipping?: ShippingInfo) => void;
 }
 
-const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, onClose, onComplete }) => {
+const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, onClose, onComplete }) => {
   const [step, setStep] = useState<'PRODUCT' | 'DEDICATION' | 'SHIPPING' | 'REVIEW'>('PRODUCT');
-  const [product, setProduct] = useState<ProductType>(ProductType.EBOOK); // Default to ebook since hardcover not available yet
+  const [product, setProduct] = useState<ProductType>(ProductType.SOFTCOVER);
   const [dedication, setDedication] = useState(analysis.dedication || '');
 
   // Price fetching state
@@ -78,10 +79,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
 
   const handleNext = () => {
     if (step === 'PRODUCT') setStep('DEDICATION');
-    else if (step === 'DEDICATION') {
-      if (product === ProductType.HARDCOVER) setStep('SHIPPING');
-      else setStep('REVIEW');
-    }
+    else if (step === 'DEDICATION') setStep('SHIPPING');
     else if (step === 'SHIPPING') setStep('REVIEW');
   };
 
@@ -106,11 +104,12 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
         },
         body: JSON.stringify({
           priceId: selectedPrice.priceId,
-          productType: product === ProductType.EBOOK ? 'ebook' : 'hardcover',
+          productType: product === ProductType.SOFTCOVER ? 'softcover' : 'hardcover',
           userId,
           creationId,
           dedicationText: dedication || undefined,
           userEmail,
+          isGift: isGift || false,
         }),
       });
 
@@ -137,10 +136,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
   const handleBack = () => {
     if (step === 'DEDICATION') setStep('PRODUCT');
     else if (step === 'SHIPPING') setStep('DEDICATION');
-    else if (step === 'REVIEW') {
-      if (product === ProductType.HARDCOVER) setStep('SHIPPING');
-      else setStep('DEDICATION');
-    }
+    else if (step === 'REVIEW') setStep('SHIPPING');
   };
 
   const isShippingValid = 
@@ -155,7 +151,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
   // Calculate total price from fetched prices
   const getSelectedPrice = (): BookPrice | null => {
     if (!prices) return null;
-    return product === ProductType.HARDCOVER ? prices.hardcover : prices.ebook;
+    return product === ProductType.HARDCOVER ? prices.hardcover : prices.softcover;
   };
 
   const selectedPrice = getSelectedPrice();
@@ -171,7 +167,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
           <div>
             <h2 className="text-2xl font-black text-gunmetal">Studio Checkout</h2>
             <p className="text-[10px] text-blue-slate font-black uppercase tracking-[0.3em] mt-1">
-              Securing your Masterpiece
+              {isGift ? 'Sending a Gift' : 'Securing your Masterpiece'}
             </p>
           </div>
           <button onClick={onClose} className="w-12 h-12 rounded-full hover:bg-slate-100 flex items-center justify-center text-gunmetal text-xl transition-all">✕</button>
@@ -212,32 +208,34 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
               {/* Product selection */}
               {!pricesLoading && !pricesError && prices && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Hardcover - Coming Soon */}
-                  <div
-                    className="group relative p-8 rounded-[2.5rem] border-4 text-left border-silver bg-gray-50 opacity-60 cursor-not-allowed"
-                  >
-                    <div className="absolute -top-3 -right-3 bg-blue-slate text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>
-                    <div className="flex justify-between items-start mb-6">
-                      <span className="text-5xl grayscale">📖</span>
-                      <span className="font-black text-blue-slate text-xl">TBD</span>
-                    </div>
-                    <h3 className="font-black text-gunmetal text-xl">Hardcover</h3>
-                    <p className="text-xs text-blue-slate mt-2 leading-relaxed">Premium 24-page archival physical book shipped to your door.</p>
-                  </div>
-
-                  {/* Ebook - Available */}
+                  {/* Softcover */}
                   <button
-                    onClick={() => setProduct(ProductType.EBOOK)}
-                    disabled={!prices.ebook}
-                    className={`group relative p-8 rounded-[2.5rem] border-4 text-left transition-all ${product === ProductType.EBOOK ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.ebook ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    onClick={() => setProduct(ProductType.SOFTCOVER)}
+                    disabled={!prices.softcover}
+                    className={`group relative p-8 rounded-[2.5rem] border-4 text-left transition-all ${product === ProductType.SOFTCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.softcover ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
-                    {product === ProductType.EBOOK && prices.ebook && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                    {product === ProductType.SOFTCOVER && prices.softcover && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                     <div className="flex justify-between items-start mb-6">
-                      <span className="text-5xl group-hover:scale-110 transition-transform">📱</span>
-                      <span className="font-black text-pacific-cyan text-xl">{prices.ebook?.displayPrice || 'N/A'}</span>
+                      <span className="text-5xl group-hover:scale-110 transition-transform">📕</span>
+                      <span className="font-black text-pacific-cyan text-xl">{prices.softcover?.displayPrice || 'N/A'}</span>
                     </div>
-                    <h3 className="font-black text-gunmetal text-xl">{prices.ebook?.productName || 'Digital Ebook'}</h3>
-                    <p className="text-xs text-blue-slate mt-2 leading-relaxed">Instant high-resolution PDF for tablets and unlimited sharing.</p>
+                    <h3 className="font-black text-gunmetal text-xl">{prices.softcover?.productName || 'Softcover Book'}</h3>
+                    <p className="text-xs text-blue-slate mt-2 leading-relaxed">8.5" x 8.5" perfect bound softcover with matte finish, shipped to your door.</p>
+                  </button>
+
+                  {/* Hardcover */}
+                  <button
+                    onClick={() => setProduct(ProductType.HARDCOVER)}
+                    disabled={!prices.hardcover}
+                    className={`group relative p-8 rounded-[2.5rem] border-4 text-left transition-all ${product === ProductType.HARDCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.hardcover ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    {product === ProductType.HARDCOVER && prices.hardcover && <div className="absolute -top-3 -right-3 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                    <div className="flex justify-between items-start mb-6">
+                      <span className="text-5xl group-hover:scale-110 transition-transform">📖</span>
+                      <span className="font-black text-pacific-cyan text-xl">{prices.hardcover?.displayPrice || 'N/A'}</span>
+                    </div>
+                    <h3 className="font-black text-gunmetal text-xl">{prices.hardcover?.productName || 'Hardcover Book'}</h3>
+                    <p className="text-xs text-blue-slate mt-2 leading-relaxed">8.5" x 8.5" casewrap hardcover with premium color, shipped to your door.</p>
                   </button>
                 </div>
               )}
@@ -267,7 +265,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 pb-8">
               <div className="flex items-center gap-4 mb-4">
                  <div className="w-12 h-12 bg-pacific-cyan/10 rounded-2xl flex items-center justify-center text-2xl">🚚</div>
-                 <h3 className="text-2xl font-black text-gunmetal">Delivery Details</h3>
+                 <h3 className="text-2xl font-black text-gunmetal">{isGift ? 'Gift Recipient Details' : 'Delivery Details'}</h3>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -305,8 +303,8 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
           {step === 'REVIEW' && (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
               <div className="text-center">
-                <span className="text-5xl mb-4 inline-block">🛒</span>
-                <h3 className="text-2xl font-black text-gunmetal">Review Your Order</h3>
+                <span className="text-5xl mb-4 inline-block">{isGift ? '🎁' : '🛒'}</span>
+                <h3 className="text-2xl font-black text-gunmetal">{isGift ? 'Review Your Gift Order' : 'Review Your Order'}</h3>
                 <p className="text-blue-slate font-medium">Confirm details before checkout</p>
               </div>
 
@@ -314,9 +312,9 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
               <div className="bg-white rounded-[2rem] border-4 border-silver p-6 space-y-4">
                 <div className="flex items-center justify-between pb-4 border-b border-silver">
                   <div className="flex items-center gap-4">
-                    <span className="text-3xl">{product === ProductType.EBOOK ? '📱' : '📖'}</span>
+                    <span className="text-3xl">{product === ProductType.SOFTCOVER ? '📕' : '📖'}</span>
                     <div>
-                      <h4 className="font-black text-gunmetal">{selectedPrice?.productName || 'Digital Storybook'}</h4>
+                      <h4 className="font-black text-gunmetal">{selectedPrice?.productName || 'Storybook'}</h4>
                       <p className="text-xs text-blue-slate">"{analysis.storyTitle}"</p>
                     </div>
                   </div>

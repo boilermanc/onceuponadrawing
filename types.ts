@@ -16,7 +16,7 @@ export enum AppStep {
 }
 
 export enum ProductType {
-  EBOOK = 'EBOOK',
+  SOFTCOVER = 'SOFTCOVER',
   HARDCOVER = 'HARDCOVER'
 }
 

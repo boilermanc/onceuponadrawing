@@ -67,6 +67,8 @@ const App: React.FC = () => {
   // My Creations gallery state
   const [showMyCreations, setShowMyCreations] = useState(false);
   const [viewingCreation, setViewingCreation] = useState<CreationWithSignedUrls | null>(null);
+  const [orderBookLoading, setOrderBookLoading] = useState(false);
+  const [isGiftOrder, setIsGiftOrder] = useState(false);
 
   // Credit system state
   const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null);
@@ -629,10 +631,15 @@ const App: React.FC = () => {
     setShowMyCreations(false);
   };
 
-  const handleOrderBook = async (creationId: string, _isGift: boolean) => {
+  const handleOrderBook = async (creationId: string, isGift: boolean) => {
     if (!state.user) return;
+    setOrderBookLoading(true);
+    setIsGiftOrder(isGift);
     const creation = await getCreation(state.user.id, creationId);
-    if (!creation) return;
+    if (!creation) {
+      setOrderBookLoading(false);
+      return;
+    }
 
     setViewingCreation(creation);
 
@@ -653,6 +660,7 @@ const App: React.FC = () => {
       step: AppStep.CHECKOUT,
     }));
 
+    setOrderBookLoading(false);
     setShowMyCreations(false);
   };
 
@@ -779,6 +787,7 @@ const App: React.FC = () => {
                 userId={state.user.id}
                 creationId={(viewingCreation?.id || currentCreationId)!}
                 userEmail={state.user.email}
+                isGift={isGiftOrder}
                 onClose={() => setState(prev => ({...prev, step: AppStep.CHECKOUT}))}
                 onComplete={(product, dedication, shipping) => {
                   handleOrderComplete(product, dedication, shipping);
@@ -850,6 +859,7 @@ const App: React.FC = () => {
             }}
             onGetCredits={() => setShowPricingModal(true)}
             onOrderBook={handleOrderBook}
+            orderBookLoading={orderBookLoading}
           />
         </div>
       )}

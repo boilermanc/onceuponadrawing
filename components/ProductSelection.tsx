@@ -17,26 +17,26 @@ const ProductSelection: React.FC<ProductSelectionProps> = ({ onSelect, onBack })
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-        {/* Ebook Option */}
+        {/* Softcover Option */}
         <div className="bg-white rounded-[2.5rem] border-4 border-silver p-8 flex flex-col shadow-xl hover:border-pacific-cyan transition-all group">
-          <div className="text-6xl mb-6 group-hover:scale-110 transition-transform origin-left">📱</div>
-          <h3 className="text-3xl font-black text-gunmetal mb-2">Digital Ebook</h3>
-          <p className="text-pacific-cyan font-black text-2xl mb-6">$12.99</p>
-          
+          <div className="text-6xl mb-6 group-hover:scale-110 transition-transform origin-left">📕</div>
+          <h3 className="text-3xl font-black text-gunmetal mb-2">Softcover</h3>
+          <p className="text-pacific-cyan font-black text-2xl mb-6">From Stripe <span className="text-sm font-bold text-blue-slate">+ shipping</span></p>
+
           <ul className="space-y-4 mb-8 flex-1">
             <li className="flex items-start gap-3 text-blue-slate font-bold">
-              <span className="text-pacific-cyan">✓</span> 24-page screen-optimized PDF
+              <span className="text-pacific-cyan">✓</span> 8.5x8.5" Perfect Bound
             </li>
             <li className="flex items-start gap-3 text-blue-slate font-bold">
-              <span className="text-pacific-cyan">✓</span> Instant download after payment
+              <span className="text-pacific-cyan">✓</span> Matte cover finish
             </li>
             <li className="flex items-start gap-3 text-blue-slate font-bold">
-              <span className="text-pacific-cyan">✓</span> Perfect for tablets & sharing
+              <span className="text-pacific-cyan">✓</span> Ships in 5-7 business days
             </li>
           </ul>
 
-          <Button onClick={() => onSelect(ProductType.EBOOK)} size="lg" className="w-full">
-            Choose Ebook
+          <Button onClick={() => onSelect(ProductType.SOFTCOVER)} size="lg" className="w-full">
+            Choose Softcover
           </Button>
         </div>
 
@@ -47,8 +47,8 @@ const ProductSelection: React.FC<ProductSelectionProps> = ({ onSelect, onBack })
           </div>
           <div className="text-6xl mb-6 group-hover:scale-110 transition-transform origin-left">📖</div>
           <h3 className="text-3xl font-black text-gunmetal mb-2">Premium Hardcover</h3>
-          <p className="text-pacific-cyan font-black text-2xl mb-6">$39.99 <span className="text-sm font-bold text-blue-slate">+ shipping</span></p>
-          
+          <p className="text-pacific-cyan font-black text-2xl mb-6">From Stripe <span className="text-sm font-bold text-blue-slate">+ shipping</span></p>
+
           <ul className="space-y-4 mb-8 flex-1">
             <li className="flex items-start gap-3 text-blue-slate font-bold">
               <span className="text-pacific-cyan">✓</span> Professional 8.5x8.5" Casewrap
@@ -57,15 +57,12 @@ const ProductSelection: React.FC<ProductSelectionProps> = ({ onSelect, onBack })
               <span className="text-pacific-cyan">✓</span> Archival quality matte paper
             </li>
             <li className="flex items-start gap-3 text-blue-slate font-bold">
-              <span className="text-pacific-cyan">✓</span> Includes digital version FREE
-            </li>
-            <li className="flex items-start gap-3 text-blue-slate font-bold">
               <span className="text-pacific-cyan">✓</span> Ships in 5-7 business days
             </li>
           </ul>
 
           <Button onClick={() => onSelect(ProductType.HARDCOVER)} size="lg" variant="secondary" className="w-full">
-            Order Printed Book
+            Order Hardcover
           </Button>
         </div>
       </div>

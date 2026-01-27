@@ -15,9 +15,10 @@ interface MyCreationsProps {
   onStartCreation: () => void;
   onGetCredits: () => void;
   onOrderBook: (creationId: string, isGift: boolean) => void;
+  orderBookLoading?: boolean;
 }
 
-const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreation, onStartCreation, onGetCredits, onOrderBook }) => {
+const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreation, onStartCreation, onGetCredits, onOrderBook, orderBookLoading }) => {
   console.log('[MyCreations] Component rendered, userId:', userId);
 
   const [creations, setCreations] = useState<Creation[]>([]);
@@ -335,16 +336,22 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
                       <div className="flex flex-col sm:flex-row gap-2">
                         <button
                           onClick={(e) => handleBookClick(e, creation, false)}
-                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-semibold text-sm transition-colors flex-1"
+                          disabled={orderBookLoading}
+                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-semibold text-sm transition-colors flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                          </svg>
-                          Order Book
+                          {orderBookLoading ? (
+                            <div className="w-4 h-4 border-2 border-amber-900/30 border-t-amber-900 rounded-full animate-spin"></div>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                          )}
+                          {orderBookLoading ? 'Loading...' : 'Order Book'}
                         </button>
                         <button
                           onClick={(e) => handleBookClick(e, creation, true)}
-                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-100 to-purple-100 hover:from-pink-200 hover:to-purple-200 text-purple-900 rounded-lg font-semibold text-sm transition-colors flex-1"
+                          disabled={orderBookLoading}
+                          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-100 to-purple-100 hover:from-pink-200 hover:to-purple-200 text-purple-900 rounded-lg font-semibold text-sm transition-colors flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <span className="text-base">🎁</span>
                           Order Gift
