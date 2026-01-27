@@ -166,7 +166,7 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
           <div className="relative inline-block">
             <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-soft-gold/30 to-pacific-cyan/30 rounded-full flex items-center justify-center mx-auto">
               <img
-                src="/once_upon_a_drawing.png"
+                src="/once_upon_a_drawing.jpeg"
                 alt="Once Upon a Drawing"
                 className="w-20 h-20 md:w-24 md:h-24 object-contain"
               />
