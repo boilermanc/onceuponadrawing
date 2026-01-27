@@ -36,7 +36,7 @@ import InfoPages, { InfoPageType } from './components/InfoPages';
 import PricingModal from './components/PricingModal';
 import CreditPurchaseSuccess from './components/CreditPurchaseSuccess';
 import BookOrderSuccess from './components/BookOrderSuccess';
-import AdminDashboard from './components/AdminDashboard';
+import AdminApp from './components/admin/AdminApp';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -697,7 +697,7 @@ const App: React.FC = () => {
   // Render Admin Dashboard if on /admin route
   if (showAdminDashboard) {
     return (
-      <AdminDashboard
+      <AdminApp
         userEmail={state.user?.email || null}
         isAuthenticated={!!state.user}
         onLogin={handleAdminLogin}
@@ -922,7 +922,7 @@ const App: React.FC = () => {
         isAuthenticated={!!state.user}
         isSaving={isSaving}
         savesUsed={saveStatus?.savesUsed ?? 0}
-        saveLimit={saveStatus?.limit ?? 3}
+        saveLimit={saveStatus?.limit ?? 2}
         saveComplete={creationSaved}
       />
 
