@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface TeaserModalProps {
   creation: {
@@ -15,6 +15,8 @@ interface TeaserModalProps {
 const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCreating }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
   const pages = creation.featured_pages || [];
   const totalPages = pages.length;
@@ -68,6 +70,36 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
     };
   }, []);
 
+  // Touch/swipe navigation
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX.current;
+    const deltaY = touchEndY - touchStartY.current;
+
+    // Only trigger swipe if horizontal movement is greater than vertical (to avoid conflicts with scrolling)
+    // and the swipe distance is significant enough (50px minimum)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (deltaX < 0) {
+        // Swiped left - go to next page
+        goToNextPage();
+      } else {
+        // Swiped right - go to previous page
+        goToPrevPage();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }, [goToNextPage, goToPrevPage]);
+
   const handleStartCreating = () => {
     onClose();
     onStartCreating?.();
@@ -117,7 +149,11 @@ const TeaserModal: React.FC<TeaserModalProps> = ({ creation, onClose, onStartCre
         </div>
 
         {/* Book Spread */}
-        <div className={`relative bg-white rounded-xl md:rounded-2xl shadow-2xl overflow-hidden book-shadow transition-transform duration-300 ${isTransitioning ? 'scale-[0.98]' : 'scale-100'}`}>
+        <div
+          className={`relative bg-white rounded-xl md:rounded-2xl shadow-2xl overflow-hidden book-shadow transition-transform duration-300 ${isTransitioning ? 'scale-[0.98]' : 'scale-100'}`}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {/* Spine divider */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-200/60 z-30 hidden md:block"></div>
           <div className="absolute left-1/2 top-0 bottom-0 w-6 -ml-3 spine-shadow z-20 hidden md:block"></div>

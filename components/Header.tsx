@@ -35,7 +35,7 @@ const Header: React.FC<HeaderProps> = ({
           alt="Once Upon a Drawing logo"
           className="w-10 h-10 rounded-full shadow-lg shadow-pacific-cyan/30 group-hover:rotate-12 transition-transform object-cover"
         />
-        <h1 className="text-2xl font-black tracking-tight text-gunmetal">
+        <h1 className="text-lg sm:text-2xl font-black tracking-tight text-gunmetal hidden sm:block">
           Once Upon<span className="text-pacific-cyan"> a Drawing</span>
         </h1>
       </div>
@@ -117,11 +117,11 @@ const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
         ) : (
-          <button 
+          <button
             onClick={onLoginClick}
-            className="px-4 py-1.5 border-2 border-silver hover:border-pacific-cyan hover:text-pacific-cyan text-blue-slate rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 hidden sm:block"
+            className="px-3 sm:px-4 py-1.5 border-2 border-silver hover:border-pacific-cyan hover:text-pacific-cyan text-blue-slate rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
           >
-            Returning Artist? <span className="underline ml-1">Sign In</span>
+            <span className="hidden sm:inline">Returning Artist? </span><span className="underline sm:ml-1">Sign In</span>
           </button>
         )}
       </div>
