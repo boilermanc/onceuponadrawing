@@ -29,6 +29,7 @@ import Storybook from './components/Storybook';
 import SaveCreationModal from './components/SaveCreationModal';
 import MyCreations from './components/MyCreations';
 import ProductSelection from './components/ProductSelection';
+import EditionPicker from './components/EditionPicker';
 import OrderFlow from './components/OrderFlow';
 import BookProof from './components/BookProof';
 import Confirmation from './components/Confirmation';
@@ -497,6 +498,7 @@ const App: React.FC = () => {
     setShowMyCreations(false);
     setShowOutOfCredits(false);
     setShowPricingModal(false);
+    setSelectedProduct(null);
   };
 
   const handleStorybookClose = async () => {
@@ -673,7 +675,7 @@ const App: React.FC = () => {
       finalVideoUrl: creation.video_url,
       heroImageUrl: creation.original_image_url,
       analysis: analysisWithImages,
-      step: AppStep.CHECKOUT,
+      step: AppStep.EDITION_SELECT,
     }));
 
     setOrderBookLoading(false);
@@ -768,7 +770,7 @@ const App: React.FC = () => {
                 onReset={handleReset} 
                 analysis={state.analysis}
                 onOpenStory={handleOpenStory}
-                onOrder={() => setState(p => ({...p, step: AppStep.PRODUCT_SELECT}))}
+                onOrder={() => setState(p => ({...p, step: AppStep.EDITION_SELECT}))}
                 isStoryLoading={!state.analysis?.pages.every(p => p.imageUrl)}
               />
             )}
@@ -779,6 +781,19 @@ const App: React.FC = () => {
                   setState(prev => ({...prev, step: AppStep.CHECKOUT}));
                 }} 
                 onBack={() => setState(prev => ({...prev, step: AppStep.RESULT}))}
+              />
+            )}
+            {state.step === AppStep.EDITION_SELECT && (
+              <EditionPicker
+                onSelect={(edition) => {
+                  setSelectedProduct(edition);
+                  setState(prev => ({ ...prev, step: AppStep.CHECKOUT }));
+                }}
+                onBack={() => {
+                  setViewingCreation(null);
+                  setShowMyCreations(true);
+                  setState(prev => ({ ...prev, step: AppStep.INITIAL }));
+                }}
               />
             )}
             {state.step === AppStep.CHECKOUT && state.analysis && (
@@ -796,10 +811,10 @@ const App: React.FC = () => {
                   }
                   setState(prev => ({...prev, step: AppStep.ORDER_FLOW}));
                 }}
-                onBack={() => setState(prev => ({...prev, step: AppStep.PRODUCT_SELECT}))}
+                onBack={() => setState(prev => ({...prev, step: AppStep.EDITION_SELECT}))}
               />
             )}
-            {state.step === AppStep.ORDER_FLOW && state.analysis && state.user && (currentCreationId || viewingCreation?.id) && (
+            {state.step === AppStep.ORDER_FLOW && state.analysis && state.user && (currentCreationId || viewingCreation?.id) && selectedProduct && (
               <OrderFlow
                 analysis={state.analysis}
                 userId={state.user.id}
@@ -808,6 +823,7 @@ const App: React.FC = () => {
                 isGift={isGiftOrder}
                 coverColorId={selectedCoverColor}
                 textColorId={selectedTextColor}
+                selectedEdition={selectedProduct}
                 onClose={() => setState(prev => ({...prev, step: AppStep.CHECKOUT}))}
                 onComplete={(product, dedication, shipping) => {
                   handleOrderComplete(product, dedication, shipping);
@@ -830,7 +846,7 @@ const App: React.FC = () => {
           onClose={handleStorybookClose}
           onOrder={() => {
             setShowStorybook(false);
-            setState(p => ({...p, step: AppStep.PRODUCT_SELECT}));
+            setState(p => ({...p, step: AppStep.EDITION_SELECT}));
           }}
           onSave={handleSaveCreation}
           savesUsed={saveStatus?.savesUsed ?? 0}
