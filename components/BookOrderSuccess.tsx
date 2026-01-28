@@ -25,11 +25,13 @@ interface BookOrderDetails {
 interface BookOrderSuccessProps {
   sessionId: string;
   onContinue: () => void;
+  onViewCreations: () => void;
 }
 
 const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
   sessionId,
   onContinue,
+  onViewCreations,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [orderDetails, setOrderDetails] = useState<BookOrderDetails | null>(null);
@@ -89,13 +91,27 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
           .select(`
             id, order_type, status, amount_paid, shipping_email, shipping_name, is_gift,
             shipping_address, shipping_address2, shipping_city, shipping_state, shipping_zip, shipping_country,
-            download_url, download_path,
-            creations!inner(title, artist_name)
+            download_url, download_path, creation_id
           `)
           .eq('stripe_session_id', sessionId)
           .single();
 
         if (fetchError) throw fetchError;
+
+        // Fetch creation details separately to avoid PostgREST join issues
+        let creationTitle: string | undefined;
+        let creationArtist: string | undefined;
+        if (data.creation_id) {
+          const { data: creation } = await supabase
+            .from('creations')
+            .select('title, artist_name')
+            .eq('id', data.creation_id)
+            .single();
+          if (creation) {
+            creationTitle = creation.title;
+            creationArtist = creation.artist_name;
+          }
+        }
 
         setOrderDetails({
           id: data.id,
@@ -111,8 +127,8 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
           shipping_zip: data.shipping_zip,
           shipping_country: data.shipping_country,
           is_gift: data.is_gift || false,
-          creation_title: (data.creations as { title: string; artist_name: string })?.title,
-          artist_name: (data.creations as { title: string; artist_name: string })?.artist_name,
+          creation_title: creationTitle,
+          artist_name: creationArtist,
           download_url: data.download_url,
           download_path: data.download_path,
         });
@@ -132,11 +148,26 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
   const isHardcover = orderDetails?.order_type === 'hardcover' || orderDetails?.order_type === 'softcover';
   const isEbook = orderDetails?.order_type === 'ebook';
 
+  // Ebook polling state
+  const [ebookPollCount, setEbookPollCount] = useState(0);
+  const [ebookTimedOut, setEbookTimedOut] = useState(false);
+  const MAX_POLL_COUNT = 40; // 40 polls * 3 seconds = 2 minutes max
+
   // Poll for ebook download URL if order is ebook and not yet completed
   useEffect(() => {
-    if (!orderDetails || !isEbook || orderDetails.download_url) return;
+    if (!orderDetails || !isEbook || orderDetails.download_url || ebookTimedOut) return;
 
     const pollInterval = setInterval(async () => {
+      setEbookPollCount(prev => {
+        const newCount = prev + 1;
+        if (newCount >= MAX_POLL_COUNT) {
+          clearInterval(pollInterval);
+          setEbookTimedOut(true);
+          return newCount;
+        }
+        return newCount;
+      });
+
       try {
         const { data } = await supabase
           .from('book_orders')
@@ -159,10 +190,12 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
     }, 3000); // Poll every 3 seconds
 
     return () => clearInterval(pollInterval);
-  }, [orderDetails?.id, isEbook, orderDetails?.download_url]);
+  }, [orderDetails?.id, isEbook, orderDetails?.download_url, ebookTimedOut]);
 
-  const handleViewCreations = () => {
-    window.location.href = '/my-creations';
+  // Retry handler for timed-out ebook generation
+  const handleRetryEbook = () => {
+    setEbookPollCount(0);
+    setEbookTimedOut(false);
   };
 
   // Format shipping address
@@ -201,9 +234,9 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
           <div className="relative inline-block">
             <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-soft-gold/30 to-pacific-cyan/30 rounded-full flex items-center justify-center mx-auto">
               <img
-                src="/once_upon_a_drawing.jpeg"
+                src="/faveicon.png"
                 alt="Once Upon a Drawing"
-                className="w-20 h-20 md:w-24 md:h-24 object-contain"
+                className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-full"
               />
             </div>
             <div className="absolute -top-1 -right-1 w-8 h-8 md:w-10 md:h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
@@ -346,6 +379,30 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
                   We also sent a download link to your email.
                 </p>
               </>
+            ) : ebookTimedOut ? (
+              <>
+                <div className="text-5xl mb-4">⏳</div>
+                <h3 className="font-bold text-gunmetal text-lg mb-2">Taking Longer Than Expected</h3>
+                <p className="text-blue-slate text-sm mb-4">
+                  Your storybook is still being generated. This can happen during busy periods.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleRetryEbook}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-pacific-cyan text-white rounded-xl font-bold hover:bg-pacific-cyan/90 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Check Again
+                  </button>
+                  <p className="text-blue-slate/60 text-xs">
+                    You'll receive an email with your download link once it's ready.
+                    <br />
+                    Questions? Contact <a href="mailto:team@sproutify.app" className="text-pacific-cyan hover:underline">team@sproutify.app</a>
+                  </p>
+                </div>
+              </>
             ) : (
               <>
                 <div className="w-10 h-10 border-4 border-pacific-cyan/30 border-t-pacific-cyan rounded-full animate-spin mx-auto mb-4" />
@@ -353,6 +410,11 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
                 <p className="text-blue-slate text-sm">
                   We're generating your high-quality PDF. This usually takes less than a minute.
                 </p>
+                {ebookPollCount > 10 && (
+                  <p className="text-blue-slate/60 text-xs mt-3">
+                    Still working... ({Math.round((ebookPollCount / MAX_POLL_COUNT) * 100)}%)
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -453,7 +515,7 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            onClick={handleViewCreations}
+            onClick={onViewCreations}
             className="px-8 py-4 bg-white border-2 border-pacific-cyan text-pacific-cyan rounded-2xl font-black text-lg hover:bg-pacific-cyan/5 active:scale-95 transition-all"
           >
             View My Creations
