@@ -41,7 +41,7 @@ const Orders: React.FC = () => {
 
       let query = supabase
         .from('book_orders')
-        .select('*, profiles!book_orders_user_id_fkey(first_name, last_name)', { count: 'exact' })
+        .select('*, profiles!book_orders_user_id_profiles_fkey(first_name, last_name)', { count: 'exact' })
         .order(sortCol, { ascending: sortAsc })
         .range(from, to);
 

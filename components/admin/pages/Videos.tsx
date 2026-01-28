@@ -22,7 +22,7 @@ const Videos: React.FC = () => {
 
       let query = supabase
         .from('creations')
-        .select('*, profiles!creations_user_id_fkey(first_name, last_name, email)', { count: 'exact' })
+        .select('*, profiles!creations_user_id_profiles_fkey(first_name, last_name, email)', { count: 'exact' })
         .eq('is_deleted', false)
         .not('video_path', 'is', null)
         .order(sortCol, { ascending: sortAsc })
