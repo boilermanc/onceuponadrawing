@@ -18,6 +18,16 @@ interface BookPricesResponse {
   hardcover: BookPrice | null;
 }
 
+interface ShippingOption {
+  shippingOptionId: string;
+  shippingOptionName: string;
+  productCost: number;
+  shippingCost: number;
+  totalCost: number;
+  currency: string;
+  deliveryDays: string;
+}
+
 interface OrderFlowProps {
   analysis: DrawingAnalysis;
   userId: string;
@@ -33,13 +43,18 @@ interface OrderFlowProps {
 
 const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, coverColorId, textColorId, selectedEdition, onClose, onComplete }) => {
   const isEbook = selectedEdition === ProductType.EBOOK;
-  const [step, setStep] = useState<'DEDICATION' | 'SHIPPING' | 'REVIEW'>('DEDICATION');
+  const [step, setStep] = useState<'DEDICATION' | 'SHIPPING' | 'LOADING_RATES' | 'SELECT_SHIPPING' | 'REVIEW'>('DEDICATION');
   const [product] = useState<ProductType>(selectedEdition);
   const [dedication, setDedication] = useState(analysis.dedication || '');
 
   // Price fetching for review display
   const [price, setPrice] = useState<BookPrice | null>(null);
   const [priceLoading, setPriceLoading] = useState(true);
+
+  // Shipping rate state
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
+  const [shippingError, setShippingError] = useState<string | null>(null);
 
   // Checkout state
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -75,10 +90,62 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
     fetchPrice();
   }, [product]);
 
+  const fetchShippingRates = async () => {
+    setShippingError(null);
+    setStep('LOADING_RATES');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Please sign in to continue');
+      }
+
+      const response = await fetch(
+        'https://cdhymstkzhlxcucbzipr.supabase.co/functions/v1/get-lulu-shipping',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shippingAddress: {
+              name: shipping.fullName,
+              street1: shipping.address1,
+              street2: shipping.address2,
+              city: shipping.city,
+              stateCode: shipping.state,
+              postalCode: shipping.zip,
+              countryCode: 'US',
+              phoneNumber: shipping.phone,
+              email: shipping.email || userEmail,
+            },
+            quantity: 1,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch shipping rates');
+      }
+
+      const data = await response.json();
+      setShippingOptions(data.totals || []);
+      setStep('SELECT_SHIPPING');
+    } catch (err: any) {
+      setShippingError(err.message);
+      setStep('SHIPPING');
+    }
+  };
+
   const handleNext = () => {
     if (step === 'DEDICATION') {
       setStep(isEbook ? 'REVIEW' : 'SHIPPING');
     } else if (step === 'SHIPPING') {
+      // For physical books, fetch shipping rates
+      fetchShippingRates();
+    } else if (step === 'SELECT_SHIPPING') {
       setStep('REVIEW');
     }
   };
@@ -88,8 +155,10 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
       onClose();
     } else if (step === 'SHIPPING') {
       setStep('DEDICATION');
+    } else if (step === 'SELECT_SHIPPING') {
+      setStep('SHIPPING');
     } else if (step === 'REVIEW') {
-      setStep(isEbook ? 'DEDICATION' : 'SHIPPING');
+      setStep(isEbook ? 'DEDICATION' : 'SELECT_SHIPPING');
     }
   };
 
@@ -105,6 +174,11 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
       }
 
       const productType = product === ProductType.EBOOK ? 'ebook' : product === ProductType.SOFTCOVER ? 'softcover' : 'hardcover';
+
+      // Get selected shipping option for physical books
+      const selectedOption = selectedShippingId
+        ? shippingOptions.find(opt => opt.shippingOptionId === selectedShippingId)
+        : null;
 
       const body: Record<string, unknown> = {
         userId,
@@ -126,8 +200,14 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
           state: shipping.state,
           zip: shipping.zip,
           phone: shipping.phone,
-          email: shipping.email,
+          email: shipping.email || userEmail,
         };
+        // Include shipping rate selection
+        if (selectedOption) {
+          body.shippingLevelId = selectedShippingId;
+          body.shippingCost = selectedOption.shippingCost;
+          body.bookCost = selectedOption.productCost;
+        }
       }
 
       const response = await fetch('https://cdhymstkzhlxcucbzipr.supabase.co/functions/v1/create-book-checkout', {
@@ -171,8 +251,21 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
     if (isEbook) {
       return step === 'DEDICATION' ? 50 : 100;
     }
-    return step === 'DEDICATION' ? 33 : step === 'SHIPPING' ? 66 : 100;
+    // Physical book: DEDICATION (20%) -> SHIPPING (40%) -> LOADING_RATES (60%) -> SELECT_SHIPPING (80%) -> REVIEW (100%)
+    switch (step) {
+      case 'DEDICATION': return 20;
+      case 'SHIPPING': return 40;
+      case 'LOADING_RATES': return 60;
+      case 'SELECT_SHIPPING': return 80;
+      case 'REVIEW': return 100;
+      default: return 0;
+    }
   };
+
+  // Get selected shipping option details
+  const selectedShippingOption = selectedShippingId
+    ? shippingOptions.find(opt => opt.shippingOptionId === selectedShippingId)
+    : null;
 
   return (
     <div className="fixed inset-0 z-[150] bg-gunmetal/90 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-500">
@@ -216,6 +309,11 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                  <div className="w-12 h-12 bg-pacific-cyan/10 rounded-2xl flex items-center justify-center text-2xl">🚚</div>
                  <h3 className="text-2xl font-black text-gunmetal">{isGift ? 'Gift Recipient Details' : 'Delivery Details'}</h3>
               </div>
+              {shippingError && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center">
+                  <p className="text-red-600 font-bold text-sm">{shippingError}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[10px] font-black text-blue-slate uppercase mb-2 block tracking-widest">Full Legal Name</label>
@@ -251,6 +349,68 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                   <input type="tel" placeholder="+1 555-0199" value={shipping.phone} onChange={e => setShipping({...shipping, phone: e.target.value})} className="w-full p-4 border-2 border-silver rounded-2xl focus:border-pacific-cyan outline-none font-bold text-gunmetal shadow-sm" />
                 </div>
               </div>
+            </div>
+          )}
+
+          {step === 'LOADING_RATES' && (
+            <div className="flex flex-col items-center justify-center py-16 space-y-6 animate-in fade-in duration-500">
+              <div className="w-16 h-16 border-4 border-pacific-cyan/20 border-t-pacific-cyan rounded-full animate-spin"></div>
+              <div className="text-center">
+                <h3 className="text-xl font-black text-gunmetal mb-2">Calculating Shipping</h3>
+                <p className="text-blue-slate text-sm">Finding the best rates for your location...</p>
+              </div>
+            </div>
+          )}
+
+          {step === 'SELECT_SHIPPING' && (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-pacific-cyan/10 rounded-2xl flex items-center justify-center text-2xl">📦</div>
+                <div>
+                  <h3 className="text-2xl font-black text-gunmetal">Select Shipping</h3>
+                  <p className="text-blue-slate text-sm">Choose your preferred delivery speed</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {shippingOptions.map((option) => (
+                  <button
+                    key={option.shippingOptionId}
+                    onClick={() => setSelectedShippingId(option.shippingOptionId)}
+                    className={`w-full p-5 rounded-2xl border-4 text-left transition-all ${
+                      selectedShippingId === option.shippingOptionId
+                        ? 'border-pacific-cyan bg-pacific-cyan/5'
+                        : 'border-silver hover:border-blue-slate'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-black text-gunmetal text-lg">{option.shippingOptionName}</div>
+                        <div className="text-sm text-blue-slate mt-1">
+                          Delivery: {option.deliveryDays}
+                        </div>
+                        <div className="text-xs text-silver mt-2">
+                          Book: ${(option.productCost / 100).toFixed(2)} + Shipping: ${(option.shippingCost / 100).toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-pacific-cyan">
+                          ${(option.totalCost / 100).toFixed(2)}
+                        </span>
+                        {selectedShippingId === option.shippingOptionId && (
+                          <div className="text-xs text-pacific-cyan font-bold mt-1">✓ Selected</div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {shippingOptions.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-blue-slate">No shipping options available for this address.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -298,6 +458,20 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                   </div>
                 )}
 
+                {/* Shipping method for physical books */}
+                {!isEbook && selectedShippingOption && (
+                  <div className="py-4 border-b border-silver">
+                    <p className="text-[10px] font-black text-blue-slate uppercase tracking-widest mb-2">Shipping Method</p>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-gunmetal font-bold text-sm">{selectedShippingOption.shippingOptionName}</p>
+                        <p className="text-blue-slate text-xs">{selectedShippingOption.deliveryDays}</p>
+                      </div>
+                      <span className="text-gunmetal font-bold">${(selectedShippingOption.shippingCost / 100).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Delivery info for ebook */}
                 {isEbook && (
                   <div className="py-4 border-b border-silver">
@@ -310,7 +484,9 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                 <div className="flex justify-between items-center pt-2">
                   <span className="font-black text-gunmetal text-lg">Total</span>
                   <span className="font-black text-pacific-cyan text-2xl">
-                    {priceLoading ? '...' : price?.displayPrice || '—'}
+                    {!isEbook && selectedShippingOption
+                      ? `$${(selectedShippingOption.totalCost / 100).toFixed(2)}`
+                      : priceLoading ? '...' : price?.displayPrice || '—'}
                   </span>
                 </div>
               </div>
@@ -343,7 +519,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
         <div className="p-8 border-t border-silver bg-white flex items-center justify-between">
           <button
             onClick={handleBack}
-            disabled={isCheckingOut}
+            disabled={isCheckingOut || step === 'LOADING_RATES'}
             className="px-6 py-3 font-black text-blue-slate uppercase tracking-widest text-xs hover:text-gunmetal transition-colors disabled:opacity-50"
           >
             {step === 'DEDICATION' ? 'Back to Proof' : 'Previous Step'}
@@ -353,7 +529,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
             <Button
               size="lg"
               onClick={handleCheckout}
-              disabled={isCheckingOut || priceLoading || !price}
+              disabled={isCheckingOut || (isEbook ? (priceLoading || !price) : !selectedShippingOption)}
             >
               <span className="flex items-center gap-2">
                 {isCheckingOut ? (
@@ -369,11 +545,18 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                 )}
               </span>
             </Button>
+          ) : step === 'LOADING_RATES' ? (
+            <Button size="lg" disabled>
+              <span className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Loading...
+              </span>
+            </Button>
           ) : (
             <Button
               size="lg"
               onClick={handleNext}
-              disabled={step === 'SHIPPING' && !isShippingValid}
+              disabled={(step === 'SHIPPING' && !isShippingValid) || (step === 'SELECT_SHIPPING' && !selectedShippingId)}
             >
               <span className="flex items-center gap-2">
                 Continue
