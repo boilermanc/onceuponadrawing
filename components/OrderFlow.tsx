@@ -121,6 +121,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
               email: shipping.email || userEmail,
             },
             quantity: 1,
+            bookType: product === ProductType.SOFTCOVER ? 'softcover' : 'hardcover',
           }),
         }
       );
