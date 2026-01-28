@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       .select(`
         *,
         creations!inner(
-          id, title, artist_name, age, year,
+          id, title, artist_name, artist_age, year,
           dedication_text, original_image_url, hero_image_url, story_pages
         )
       `)
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     const bookContent: BookContent = {
       title: creation.title,
       artistName: creation.artist_name,
-      age: creation.age,
+      age: creation.artist_age,
       year: creation.year,
       dedication: bookOrder.dedication_text || creation.dedication_text,
       originalImageUrl: creation.original_image_url,
