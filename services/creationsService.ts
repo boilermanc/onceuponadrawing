@@ -528,3 +528,44 @@ export async function recordProofApproval(
   console.log('[creationsService] Proof approval recorded for creation:', creationId);
   return true;
 }
+
+/**
+ * Ebook download info for a creation
+ */
+export interface EbookDownload {
+  creationId: string;
+  downloadUrl: string;
+  orderId: string;
+}
+
+/**
+ * Get ebook downloads for a user's creations
+ * Returns a map of creation_id -> download info for completed ebook orders
+ */
+export async function getEbookDownloads(userId: string): Promise<Map<string, EbookDownload>> {
+  const { data, error } = await supabase
+    .from('book_orders')
+    .select('id, creation_id, download_url')
+    .eq('user_id', userId)
+    .eq('order_type', 'ebook')
+    .eq('status', 'completed')
+    .not('download_url', 'is', null);
+
+  if (error) {
+    console.error('[getEbookDownloads] Failed to fetch ebook orders:', error);
+    return new Map();
+  }
+
+  const downloads = new Map<string, EbookDownload>();
+  for (const order of data || []) {
+    if (order.creation_id && order.download_url) {
+      downloads.set(order.creation_id, {
+        creationId: order.creation_id,
+        downloadUrl: order.download_url,
+        orderId: order.id,
+      });
+    }
+  }
+
+  return downloads;
+}
