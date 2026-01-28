@@ -8,6 +8,9 @@ const pageTitles: Record<AdminPage, string> = {
   stories: 'Stories',
   videos: 'Videos',
   orders: 'Orders',
+  gallery: 'Gallery',
+  preview: 'Print Preview',
+  emails: 'Emails',
   settings: 'Settings',
 };
 
