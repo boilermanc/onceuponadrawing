@@ -88,11 +88,11 @@ const AdminAppInner: React.FC<AdminAppProps> = ({ userEmail, isAuthenticated, on
   // Not authenticated - show login
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center relative overflow-hidden">
+      <div className="min-h-screen bg-off-white flex items-center justify-center relative overflow-hidden">
         {/* Subtle background pattern */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-800 via-slate-950 to-slate-950" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-orange-500/5 rounded-full blur-[120px]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-off-white via-off-white to-silver/20" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-pacific-cyan/10 rounded-full blur-[120px]" />
         </div>
 
         <motion.div
@@ -107,40 +107,40 @@ const AdminAppInner: React.FC<AdminAppProps> = ({ userEmail, isAuthenticated, on
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, duration: 0.4 }}
-              className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 mb-4"
+              className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-slate border border-blue-slate/20 mb-4"
             >
-              <BookOpen size={22} className="text-orange-400" />
+              <BookOpen size={22} className="text-off-white" />
             </motion.div>
-            <h1 className="text-xl font-semibold text-white">Once Upon a Drawing</h1>
-            <p className="text-sm text-slate-500 mt-1">Admin Console</p>
+            <h1 className="text-xl font-semibold text-gunmetal">Once Upon a Drawing</h1>
+            <p className="text-sm text-gunmetal/60 mt-1">Admin Console</p>
           </div>
 
           {/* Login Card */}
-          <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-xl p-6 shadow-2xl shadow-black/20">
+          <div className="bg-white/80 backdrop-blur-sm border border-silver/50 rounded-xl p-6 shadow-lg shadow-gunmetal/5">
             <div className="flex items-center gap-2 mb-5">
-              <Lock size={14} className="text-slate-500" />
-              <span className="text-sm font-medium text-slate-400">Sign in to continue</span>
+              <Lock size={14} className="text-blue-slate" />
+              <span className="text-sm font-medium text-gunmetal/70">Sign in to continue</span>
             </div>
 
             <form onSubmit={handleAdminLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Email</label>
+                <label className="block text-xs font-medium text-gunmetal/70 mb-1.5 uppercase tracking-wider">Email</label>
                 <input
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/40 transition-colors"
+                  className="w-full px-3 py-2.5 text-sm bg-off-white border border-silver rounded-lg text-gunmetal placeholder-gunmetal/40 focus:outline-none focus:ring-2 focus:ring-pacific-cyan/40 focus:border-pacific-cyan transition-colors"
                   placeholder="admin@example.com"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Password</label>
+                <label className="block text-xs font-medium text-gunmetal/70 mb-1.5 uppercase tracking-wider">Password</label>
                 <input
                   type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/40 transition-colors"
+                  className="w-full px-3 py-2.5 text-sm bg-off-white border border-silver rounded-lg text-gunmetal placeholder-gunmetal/40 focus:outline-none focus:ring-2 focus:ring-pacific-cyan/40 focus:border-pacific-cyan transition-colors"
                   placeholder="Enter password"
                   required
                 />
@@ -149,7 +149,7 @@ const AdminAppInner: React.FC<AdminAppProps> = ({ userEmail, isAuthenticated, on
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2"
+                  className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
                 >
                   <span>{loginError}</span>
                 </motion.div>
@@ -157,7 +157,7 @@ const AdminAppInner: React.FC<AdminAppProps> = ({ userEmail, isAuthenticated, on
               <button
                 type="submit"
                 disabled={loginLoading}
-                className="w-full py-2.5 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-500 disabled:opacity-50 disabled:hover:bg-orange-600 transition-colors mt-2"
+                className="w-full py-2.5 text-sm font-medium text-white bg-blue-slate rounded-lg hover:bg-blue-slate/90 disabled:opacity-50 disabled:hover:bg-blue-slate transition-colors mt-2"
               >
                 {loginLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -175,7 +175,7 @@ const AdminAppInner: React.FC<AdminAppProps> = ({ userEmail, isAuthenticated, on
           {/* Back link */}
           <button
             onClick={onBack}
-            className="mt-6 w-full flex items-center justify-center gap-1.5 text-sm text-slate-600 hover:text-slate-400 transition-colors"
+            className="mt-6 w-full flex items-center justify-center gap-1.5 text-sm text-gunmetal/50 hover:text-gunmetal/70 transition-colors"
           >
             <ArrowLeft size={14} />
             Back to site
