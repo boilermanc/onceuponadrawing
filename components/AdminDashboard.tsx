@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
 import AdminEmailPanel from './AdminEmailPanel';
+import { usePrices } from '../contexts/PricesContext';
 
 const ADMIN_EMAIL = 'team@sproutify.app';
 
@@ -192,10 +193,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [previewResults, setPreviewResults] = useState<Map<string, PreviewResult>>(new Map());
   const [selectedBookTypes, setSelectedBookTypes] = useState<Map<string, string>>(new Map()); // creationId -> bookType
-  const [bookPrices, setBookPrices] = useState<{
-    softcover?: { amount: number; displayPrice: string };
-    hardcover?: { amount: number; displayPrice: string };
-  }>({});
+
+  // Get book prices from context
+  const { prices: contextPrices } = usePrices();
+  const bookPrices = {
+    softcover: contextPrices?.softcover,
+    hardcover: contextPrices?.hardcover,
+  };
 
   // Local auth state check (independent of prop)
   const [localAuthState, setLocalAuthState] = useState<{ isAuthenticated: boolean; email: string | null }>({
@@ -347,35 +351,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Fetch book prices from Stripe
-  const fetchBookPrices = async () => {
-    try {
-      console.log('[AdminDashboard] Fetching book prices from Stripe...');
-      const { data, error } = await supabase.functions.invoke('get-book-prices');
-      
-      if (error) {
-        console.error('[AdminDashboard] Error fetching book prices:', error);
-        return;
-      }
-      
-      console.log('[AdminDashboard] Book prices received:', data);
-      setBookPrices({
-        softcover: data?.softcover,
-        hardcover: data?.hardcover,
-      });
-    } catch (err) {
-      console.error('[AdminDashboard] Failed to fetch book prices:', err);
-    }
-  };
-
   useEffect(() => {
     if (isAdmin) {
       fetchOrders();
       if (activeTab === 'preview' || activeTab === 'gallery') {
         fetchCreations();
-        if (activeTab === 'preview') {
-          fetchBookPrices(); // Fetch prices when preview tab is active
-        }
       }
     }
   }, [isAdmin, activeTab]);

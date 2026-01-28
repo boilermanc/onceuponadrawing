@@ -1,22 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DrawingAnalysis, ProductType, ShippingInfo } from '../types';
 import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
-
-interface BookPrice {
-  priceId: string;
-  amount: number;
-  currency: string;
-  displayPrice: string;
-  productName: string;
-}
-
-interface BookPricesResponse {
-  ebook: BookPrice | null;
-  softcover: BookPrice | null;
-  hardcover: BookPrice | null;
-}
+import { usePrices } from '../contexts/PricesContext';
 
 interface ShippingOption {
   shippingOptionId: string;
@@ -47,9 +34,13 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
   const [product] = useState<ProductType>(selectedEdition);
   const [dedication, setDedication] = useState(analysis.dedication || '');
 
-  // Price fetching for review display
-  const [price, setPrice] = useState<BookPrice | null>(null);
-  const [priceLoading, setPriceLoading] = useState(true);
+  // Get prices from context
+  const { prices, loading: priceLoading } = usePrices();
+  const price = prices ? (
+    product === ProductType.EBOOK ? prices.ebook :
+    product === ProductType.HARDCOVER ? prices.hardcover :
+    prices.softcover
+  ) : null;
 
   // Shipping rate state
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -70,25 +61,6 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
     phone: '',
     email: ''
   });
-
-  // Fetch the price for the selected edition
-  useEffect(() => {
-    const fetchPrice = async () => {
-      try {
-        setPriceLoading(true);
-        const response = await fetch('https://cdhymstkzhlxcucbzipr.supabase.co/functions/v1/get-book-prices');
-        if (!response.ok) throw new Error('Failed to fetch prices');
-        const data: BookPricesResponse = await response.json();
-        const key = product === ProductType.EBOOK ? 'ebook' : product === ProductType.HARDCOVER ? 'hardcover' : 'softcover';
-        setPrice(data[key]);
-      } catch (error) {
-        console.error('Error fetching price:', error);
-      } finally {
-        setPriceLoading(false);
-      }
-    };
-    fetchPrice();
-  }, [product]);
 
   const fetchShippingRates = async () => {
     setShippingError(null);

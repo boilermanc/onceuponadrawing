@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Download, FileText, AlertCircle, Info } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
+import { usePrices } from '../../../contexts/PricesContext';
 
 interface PreviewResult {
   success: boolean;
@@ -37,10 +38,13 @@ const Preview: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [previewResults, setPreviewResults] = useState<Map<string, PreviewResult>>(new Map());
   const [selectedBookTypes, setSelectedBookTypes] = useState<Map<string, string>>(new Map());
-  const [bookPrices, setBookPrices] = useState<{
-    softcover?: { amount: number; displayPrice: string };
-    hardcover?: { amount: number; displayPrice: string };
-  }>({});
+
+  // Get book prices from context
+  const { prices: contextPrices } = usePrices();
+  const bookPrices = {
+    softcover: contextPrices?.softcover,
+    hardcover: contextPrices?.hardcover,
+  };
 
   const fetchCreations = useCallback(async () => {
     setIsLoading(true);
@@ -61,20 +65,9 @@ const Preview: React.FC = () => {
     }
   }, []);
 
-  const fetchBookPrices = useCallback(async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('get-book-prices');
-      if (error) return;
-      setBookPrices({ softcover: data?.softcover, hardcover: data?.hardcover });
-    } catch {
-      // Non-critical
-    }
-  }, []);
-
   useEffect(() => {
     fetchCreations();
-    fetchBookPrices();
-  }, [fetchCreations, fetchBookPrices]);
+  }, [fetchCreations]);
 
   const generatePreview = async (creationId: string) => {
     setPreviewLoading(creationId);

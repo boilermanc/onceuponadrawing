@@ -1,25 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ProductType } from '../types';
 import Button from './ui/Button';
+import { usePrices, BookPrice } from '../contexts/PricesContext';
 
 const ANCHOR_PRICES: Record<string, number> = {
   hardcover: 59.99,
 };
-
-interface BookPrice {
-  priceId: string;
-  amount: number;
-  currency: string;
-  displayPrice: string;
-  productName: string;
-}
-
-interface BookPricesResponse {
-  ebook: BookPrice | null;
-  softcover: BookPrice | null;
-  hardcover: BookPrice | null;
-}
 
 interface EditionPickerProps {
   onSelect: (edition: ProductType) => void;
@@ -28,28 +15,7 @@ interface EditionPickerProps {
 
 const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
   const [selected, setSelected] = useState<ProductType>(ProductType.SOFTCOVER);
-  const [prices, setPrices] = useState<BookPricesResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch('https://cdhymstkzhlxcucbzipr.supabase.co/functions/v1/get-book-prices');
-        if (!response.ok) throw new Error(`Failed to fetch prices: ${response.status}`);
-        const data: BookPricesResponse = await response.json();
-        setPrices(data);
-      } catch (err) {
-        console.error('Error fetching book prices:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load prices');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPrices();
-  }, []);
+  const { prices, loading, error } = usePrices();
 
   const getSelectedPrice = (): BookPrice | null => {
     if (!prices) return null;

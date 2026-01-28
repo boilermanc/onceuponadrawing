@@ -38,6 +38,7 @@ import PricingModal from './components/PricingModal';
 import CreditPurchaseSuccess from './components/CreditPurchaseSuccess';
 import BookOrderSuccess from './components/BookOrderSuccess';
 import AdminApp from './components/admin/AdminApp';
+import { usePrices } from './contexts/PricesContext';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -88,6 +89,9 @@ const App: React.FC = () => {
   // Visibility refresh hook for handling stale connections
   const { refreshKey, getSignal } = useVisibilityRefresh();
 
+  // Prices context for Stripe price caching
+  const { prices, fetchPrices } = usePrices();
+
   const buildUser = (sessionUser: any, profile: any): User | null => {
     if (!sessionUser && !profile) return null;
     const meta = sessionUser?.user_metadata || {};
@@ -115,7 +119,7 @@ const App: React.FC = () => {
           console.log('[Root] initAuth setting user:', user.id);
           setState(prev => ({ ...prev, user }));
 
-          // Fetch profile and credits in background
+          // Fetch profile, credits, and prices in background
           (async () => {
             try {
               const profile = await getProfile(session.user.id);
@@ -125,6 +129,9 @@ const App: React.FC = () => {
 
               const balance = await getCreditBalance(session.user.id);
               if (isMounted) setCreditBalance(balance);
+
+              // Prefetch Stripe prices for checkout
+              fetchPrices();
             } catch (err) {
               console.error('[Root] initAuth background fetch failed:', err);
             }
@@ -148,7 +155,7 @@ const App: React.FC = () => {
         console.log('[Root] Setting user from session:', user.id);
         setState(prev => ({ ...prev, user }));
 
-        // Fetch profile and credits in background (don't block UI)
+        // Fetch profile, credits, and prices in background (don't block UI)
         (async () => {
           try {
             console.log('[Root] Fetching profile...');
@@ -164,6 +171,9 @@ const App: React.FC = () => {
             const balance = await getCreditBalance(session.user.id);
             console.log('[Root] Credits fetched:', balance);
             if (isMounted) setCreditBalance(balance);
+
+            // Prefetch Stripe prices for checkout
+            fetchPrices();
           } catch (err) {
             console.error('[Root] Background fetch failed:', err);
           }
@@ -449,14 +459,19 @@ const App: React.FC = () => {
 
   const handleOrderComplete = async (product: ProductType, dedication: string, shipping?: ShippingInfo) => {
     if (!state.user) return;
-    
+
     try {
-      const amount = product === ProductType.HARDCOVER ? 4798 : 1299;
+      // Get price from context based on product type
+      const priceData = product === ProductType.EBOOK ? prices?.ebook :
+                        product === ProductType.HARDCOVER ? prices?.hardcover :
+                        prices?.softcover;
+      const amount = priceData?.amount ?? 0;
+
       const orderData = await createOrder(
-        state.user.id, 
-        currentDrawingId, 
-        product, 
-        amount, 
+        state.user.id,
+        currentDrawingId,
+        product,
+        amount,
         shipping || null
       );
 
@@ -468,7 +483,7 @@ const App: React.FC = () => {
         totalAmount: amount,
         status: OrderStatus.PAYMENT_RECEIVED
       };
-      
+
       setState(prev => ({
         ...prev,
         step: AppStep.CONFIRMATION,
@@ -965,6 +980,11 @@ const App: React.FC = () => {
               setShowBookOrderSuccess(false);
               setBookOrderSessionId(null);
               setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+            }}
+            onViewCreations={() => {
+              setShowBookOrderSuccess(false);
+              setBookOrderSessionId(null);
+              setShowMyCreations(true);
             }}
           />
         </div>
