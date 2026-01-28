@@ -39,6 +39,8 @@ import CreditPurchaseSuccess from './components/CreditPurchaseSuccess';
 import BookOrderSuccess from './components/BookOrderSuccess';
 import AdminApp from './components/admin/AdminApp';
 import { usePrices } from './contexts/PricesContext';
+import { InstallPrompt } from './components/InstallPrompt';
+import { UpdatePrompt } from './components/UpdatePrompt';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -989,6 +991,10 @@ const App: React.FC = () => {
           />
         </div>
       )}
+
+      {/* PWA Install & Update Prompts */}
+      <InstallPrompt delayMs={30000} />
+      <UpdatePrompt />
     </div>
   );
 };
