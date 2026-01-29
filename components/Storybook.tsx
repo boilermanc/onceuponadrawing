@@ -157,11 +157,11 @@ const Storybook: React.FC<StorybookProps> = ({
           </div>
 
           {/* RIGHT PAGE: Content */}
-          <div className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden bg-[#fffdf9] p-8 sm:p-12 md:p-16 lg:p-24 flex flex-col justify-center items-center text-center">
+          <div className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-y-auto bg-[#fffdf9] p-6 sm:p-8 md:p-16 lg:p-24 flex flex-col justify-start md:justify-center items-center text-center">
              <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]"></div>
              <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black/5 to-transparent pointer-events-none"></div>
 
-             <div key={`right-${currentPage}`} className="z-10 w-full animate-in fade-in slide-in-from-right-8 duration-700 px-4 md:px-0">
+             <div key={`right-${currentPage}`} className="z-10 w-full animate-in fade-in slide-in-from-right-8 duration-700 px-2 md:px-0">
                 {currentPage === 0 ? (
                   <div className="space-y-4 md:space-y-6">
                     <div className="inline-block px-4 py-1 bg-silver text-pacific-cyan rounded-full text-[10px] md:text-xs font-black uppercase tracking-widest mb-2">
@@ -193,27 +193,27 @@ const Storybook: React.FC<StorybookProps> = ({
                     </div>
                   </div>
                 ) : currentPage === totalSpreads - 1 ? (
-                  <div className="space-y-4 md:space-y-6">
-                    <div className="inline-block px-4 py-1.5 md:px-6 md:py-2 bg-pacific-cyan/20 text-pacific-cyan rounded-full text-xs md:text-sm font-black uppercase tracking-[0.2em] mb-2">
+                  <div className="space-y-2 md:space-y-6">
+                    <div className="inline-block px-3 py-1 md:px-6 md:py-2 bg-pacific-cyan/20 text-pacific-cyan rounded-full text-[10px] md:text-sm font-black uppercase tracking-[0.2em] mb-1 md:mb-2">
                       The End 📜
                     </div>
-                    <h2 className="text-2xl md:text-5xl lg:text-6xl font-black text-gunmetal leading-tight mb-4">A Legacy Created.</h2>
+                    <h2 className="text-xl md:text-5xl lg:text-6xl font-black text-gunmetal leading-tight mb-2 md:mb-4">A Legacy Created.</h2>
 
-                    <div className="flex flex-col gap-4 pt-4 w-full max-w-sm mx-auto">
+                    <div className="flex flex-col gap-3 md:gap-4 pt-2 md:pt-4 w-full max-w-sm mx-auto">
                        {/* Save to Gallery Section */}
-                       <div className="flex flex-col items-center gap-3">
+                       <div className="flex flex-col items-center gap-2 md:gap-3">
                          {isAlreadySaved ? (
                            /* Already saved - show confirmation + remaining saves + upsell */
                            <>
-                             <div className="flex items-center gap-2 px-4 py-2 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-sm font-bold">
-                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                             <div className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-pacific-cyan/10 text-pacific-cyan rounded-full text-xs md:text-sm font-bold">
+                               <svg className="w-3 h-3 md:w-4 md:h-4" fill="currentColor" viewBox="0 0 20 20">
                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                </svg>
                                Saved to Gallery
                              </div>
                              {limit !== Infinity && (
                                <div className="text-center">
-                                 <p className="text-sm text-blue-slate">
+                                 <p className="text-xs md:text-sm text-blue-slate">
                                    {limit - savesUsed > 0
                                      ? `${limit - savesUsed} free save${limit - savesUsed !== 1 ? 's' : ''} remaining`
                                      : 'No free saves remaining'
@@ -221,7 +221,7 @@ const Storybook: React.FC<StorybookProps> = ({
                                  </p>
                                  <button
                                    onClick={onGetCredits}
-                                   className="mt-2 text-sm font-bold text-soft-gold hover:text-amber-600 underline transition-colors"
+                                   className="mt-1 md:mt-2 text-xs md:text-sm font-bold text-soft-gold hover:text-amber-600 underline transition-colors"
                                  >
                                    Get more credits →
                                  </button>
@@ -232,15 +232,15 @@ const Storybook: React.FC<StorybookProps> = ({
                            /* At limit - show purchase button instead of save */
                            <button
                              onClick={onGetCredits}
-                             className="flex flex-col items-center justify-center gap-1 w-full py-5 rounded-3xl font-black transition-all bg-gradient-to-r from-soft-gold to-amber-500 text-white shadow-xl shadow-soft-gold/30 hover:scale-105 active:scale-95"
+                             className="flex flex-col items-center justify-center gap-0.5 md:gap-1 w-full py-3 md:py-5 rounded-2xl md:rounded-3xl font-black transition-all bg-gradient-to-r from-soft-gold to-amber-500 text-white shadow-xl shadow-soft-gold/30 hover:scale-105 active:scale-95"
                            >
                              <div className="flex items-center gap-2">
-                               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                               <svg className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                </svg>
-                               <span className="text-lg">GET CREDITS TO SAVE</span>
+                               <span className="text-base md:text-lg">GET CREDITS TO SAVE</span>
                              </div>
-                             <span className="text-[10px] uppercase tracking-widest font-black opacity-80">
+                             <span className="text-[8px] md:text-[10px] uppercase tracking-widest font-black opacity-80">
                                All {limit} free saves used
                              </span>
                            </button>
@@ -249,26 +249,26 @@ const Storybook: React.FC<StorybookProps> = ({
                            <button
                              onClick={onSave}
                              disabled={isSaving}
-                             className="flex flex-col items-center justify-center gap-1 w-full py-5 rounded-3xl font-black transition-all bg-gradient-to-r from-pacific-cyan to-soft-gold text-white shadow-xl shadow-pacific-cyan/20 hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100"
+                             className="flex flex-col items-center justify-center gap-0.5 md:gap-1 w-full py-3 md:py-5 rounded-2xl md:rounded-3xl font-black transition-all bg-gradient-to-r from-pacific-cyan to-soft-gold text-white shadow-xl shadow-pacific-cyan/20 hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100"
                            >
                              {isSaving ? (
                                <>
-                                 <div className="w-6 h-6 border-3 border-white border-t-transparent animate-spin rounded-full"></div>
-                                 <span className="text-lg">SAVING...</span>
-                                 <span className="text-xs opacity-80 font-medium">This may take a moment</span>
+                                 <div className="w-5 h-5 md:w-6 md:h-6 border-2 md:border-3 border-white border-t-transparent animate-spin rounded-full"></div>
+                                 <span className="text-base md:text-lg">SAVING...</span>
+                                 <span className="text-[10px] md:text-xs opacity-80 font-medium">This may take a moment</span>
                                </>
                              ) : (
                                <>
                                  <div className="flex items-center gap-2">
-                                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                                    </svg>
-                                   <span className="text-lg">SAVE TO GALLERY</span>
+                                   <span className="text-base md:text-lg">SAVE TO GALLERY</span>
                                    {limit === Infinity && (
-                                     <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] uppercase tracking-wider">Premium</span>
+                                     <span className="px-2 py-0.5 bg-white/20 rounded-full text-[8px] md:text-[10px] uppercase tracking-wider">Premium</span>
                                    )}
                                  </div>
-                                 <span className="text-[10px] uppercase tracking-widest font-black opacity-70">
+                                 <span className="text-[8px] md:text-[10px] uppercase tracking-widest font-black opacity-70">
                                    {limit === Infinity
                                      ? 'Unlimited saves'
                                      : `${limit - savesUsed} free save${limit - savesUsed !== 1 ? 's' : ''} remaining`
@@ -281,34 +281,34 @@ const Storybook: React.FC<StorybookProps> = ({
                        </div>
 
                        {/* Divider */}
-                       <div className="flex items-center gap-3 py-2">
+                       <div className="flex items-center gap-2 md:gap-3 py-1 md:py-2">
                          <div className="flex-1 h-px bg-silver/50"></div>
-                         <span className="text-[10px] text-silver font-black uppercase tracking-widest">Or Order</span>
+                         <span className="text-[8px] md:text-[10px] text-silver font-black uppercase tracking-widest">Or Order</span>
                          <div className="flex-1 h-px bg-silver/50"></div>
                        </div>
 
                        {/* Order Buttons */}
                        <button
                          onClick={onOrder}
-                         className="flex flex-col items-center justify-center gap-1 w-full py-6 bg-pacific-cyan text-white rounded-3xl font-black shadow-xl shadow-pacific-cyan/30 hover:scale-105 active:scale-95 transition-all group"
+                         className="flex flex-col items-center justify-center gap-0.5 md:gap-1 w-full py-4 md:py-6 bg-pacific-cyan text-white rounded-2xl md:rounded-3xl font-black shadow-xl shadow-pacific-cyan/30 hover:scale-105 active:scale-95 transition-all group"
                        >
-                         <span className="text-2xl">📖</span>
-                         <span className="text-lg">ORDER HARDCOVER</span>
-                         <span className="text-[10px] opacity-70 uppercase tracking-widest font-black">Limited Studio Printing</span>
+                         <span className="text-xl md:text-2xl">📖</span>
+                         <span className="text-base md:text-lg">ORDER HARDCOVER</span>
+                         <span className="text-[8px] md:text-[10px] opacity-70 uppercase tracking-widest font-black">Limited Studio Printing</span>
                        </button>
 
                        <button
                          onClick={onOrder}
-                         className="flex flex-col items-center justify-center gap-1 w-full py-5 bg-white border-4 border-silver text-gunmetal rounded-3xl font-black hover:bg-off-white active:scale-95 transition-all"
+                         className="flex flex-col items-center justify-center gap-0.5 md:gap-1 w-full py-3 md:py-5 bg-white border-3 md:border-4 border-silver text-gunmetal rounded-2xl md:rounded-3xl font-black hover:bg-off-white active:scale-95 transition-all"
                        >
-                         <span className="text-2xl">📱</span>
-                         <span className="text-lg uppercase">CREATE EBOOK</span>
-                         <span className="text-[10px] text-blue-slate opacity-70 uppercase tracking-widest font-black">Instant Digital Download</span>
+                         <span className="text-xl md:text-2xl">📱</span>
+                         <span className="text-base md:text-lg uppercase">CREATE EBOOK</span>
+                         <span className="text-[8px] md:text-[10px] text-blue-slate opacity-70 uppercase tracking-widest font-black">Instant Digital Download</span>
                        </button>
 
                        <button
                          onClick={handleSave}
-                         className="py-2 text-silver hover:text-blue-slate transition-colors text-[10px] font-black uppercase tracking-[0.4em]"
+                         className="py-1 md:py-2 text-silver hover:text-blue-slate transition-colors text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em]"
                        >
                          💾 SAVE MOVIE FILE
                        </button>
