@@ -178,6 +178,7 @@ async function handleBookOrder(session: any): Promise<Response> {
       fetch(`${SUPABASE_URL}/functions/v1/process-ebook-order`, {
         method: 'POST',
         headers: {
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
           'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           'Content-Type': 'application/json',
         },
@@ -192,6 +193,7 @@ async function handleBookOrder(session: any): Promise<Response> {
       fetch(`${SUPABASE_URL}/functions/v1/process-book-order`, {
         method: 'POST',
         headers: {
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
           'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           'Content-Type': 'application/json',
         },
