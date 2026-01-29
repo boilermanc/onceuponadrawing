@@ -79,16 +79,23 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
                 <button
                   onClick={() => setSelected(ProductType.EBOOK)}
                   disabled={!prices.ebook}
-                  className={`group relative w-full p-6 rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.EBOOK ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.ebook ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.EBOOK ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.ebook ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   {selected === ProductType.EBOOK && prices.ebook && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
-                  <div className="flex items-center gap-6">
-                    <span className="text-5xl group-hover:scale-110 transition-transform flex-shrink-0">💻</span>
-                    <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
+                      <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">💻</span>
+                      <div className="flex-1 min-w-0 sm:hidden">
+                        <h3 className="font-black text-gunmetal text-lg">{prices.ebook?.productName || 'Digital Storybook'}</h3>
+                        <span className="font-black text-pacific-cyan text-lg">{prices.ebook?.displayPrice || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 hidden sm:block">
                       <h3 className="font-black text-gunmetal text-xl">{prices.ebook?.productName || 'Digital Storybook'}</h3>
                       <p className="text-xs text-blue-slate mt-1 leading-relaxed">High-quality PDF — instant download, print at home, share digitally.</p>
                     </div>
-                    <span className="font-black text-pacific-cyan text-xl flex-shrink-0">{prices.ebook?.displayPrice || 'N/A'}</span>
+                    <p className="text-xs text-blue-slate leading-relaxed sm:hidden">High-quality PDF — instant download, print at home, share digitally.</p>
+                    <span className="font-black text-pacific-cyan text-xl flex-shrink-0 hidden sm:block">{prices.ebook?.displayPrice || 'N/A'}</span>
                   </div>
                 </button>
 
@@ -96,16 +103,23 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
                 <button
                   onClick={() => setSelected(ProductType.SOFTCOVER)}
                   disabled={!prices.softcover}
-                  className={`group relative w-full p-6 rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.SOFTCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.softcover ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.SOFTCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.softcover ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   {selected === ProductType.SOFTCOVER && prices.softcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
-                  <div className="flex items-center gap-6">
-                    <span className="text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📕</span>
-                    <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
+                      <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📕</span>
+                      <div className="flex-1 min-w-0 sm:hidden">
+                        <h3 className="font-black text-gunmetal text-lg">{prices.softcover?.productName || 'Softcover Storybook'}</h3>
+                        <span className="font-black text-pacific-cyan text-lg">{prices.softcover?.displayPrice || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 hidden sm:block">
                       <h3 className="font-black text-gunmetal text-xl">{prices.softcover?.productName || 'Softcover Storybook'}</h3>
                       <p className="text-xs text-blue-slate mt-1 leading-relaxed">8.5" x 8.5" perfect bound softcover with matte finish, shipped to your door.</p>
                     </div>
-                    <span className="font-black text-pacific-cyan text-xl flex-shrink-0">{prices.softcover?.displayPrice || 'N/A'}</span>
+                    <p className="text-xs text-blue-slate leading-relaxed sm:hidden">8.5" x 8.5" perfect bound softcover with matte finish, shipped to your door.</p>
+                    <span className="font-black text-pacific-cyan text-xl flex-shrink-0 hidden sm:block">{prices.softcover?.displayPrice || 'N/A'}</span>
                   </div>
                 </button>
 
@@ -113,16 +127,27 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
                 <button
                   onClick={() => setSelected(ProductType.HARDCOVER)}
                   disabled={!prices.hardcover}
-                  className={`group relative w-full p-6 rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.HARDCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.hardcover ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.HARDCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.hardcover ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   {selected === ProductType.HARDCOVER && prices.hardcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
-                  <div className="flex items-center gap-6">
-                    <span className="text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📖</span>
-                    <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
+                      <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📖</span>
+                      <div className="flex-1 min-w-0 sm:hidden">
+                        <h3 className="font-black text-gunmetal text-lg">{prices.hardcover?.productName || 'Hardcover Storybook'}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-slate-400 line-through text-sm">${ANCHOR_PRICES.hardcover.toFixed(2)}</span>
+                          <span className="font-black text-pacific-cyan text-lg">{prices.hardcover?.displayPrice || 'N/A'}</span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">Save 25%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 hidden sm:block">
                       <h3 className="font-black text-gunmetal text-xl">{prices.hardcover?.productName || 'Hardcover Storybook'}</h3>
                       <p className="text-xs text-blue-slate mt-1 leading-relaxed">8.5" x 8.5" casewrap hardcover with premium color, shipped to your door.</p>
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <p className="text-xs text-blue-slate leading-relaxed sm:hidden">8.5" x 8.5" casewrap hardcover with premium color, shipped to your door.</p>
+                    <div className="text-right flex-shrink-0 hidden sm:block">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-400 line-through text-sm">${ANCHOR_PRICES.hardcover.toFixed(2)}</span>
                         <span className="font-black text-pacific-cyan text-xl">{prices.hardcover?.displayPrice || 'N/A'}</span>
