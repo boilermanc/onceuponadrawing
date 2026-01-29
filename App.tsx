@@ -38,6 +38,7 @@ import PricingModal from './components/PricingModal';
 import CreditPurchaseSuccess from './components/CreditPurchaseSuccess';
 import BookOrderSuccess from './components/BookOrderSuccess';
 import AdminApp from './components/admin/AdminApp';
+import UploadGuidelines, { shouldShowGuidelines } from './components/UploadGuidelines';
 import { usePrices } from './contexts/PricesContext';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
@@ -87,6 +88,9 @@ const App: React.FC = () => {
 
   // Admin dashboard state
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+
+  // Upload guidelines modal state
+  const [showGuidelines, setShowGuidelines] = useState(false);
 
   // Visibility refresh hook for handling stale connections
   const { refreshKey, getSignal } = useVisibilityRefresh();
@@ -327,7 +331,12 @@ const App: React.FC = () => {
         return;
       }
 
-      setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+      // Show upload guidelines modal if user hasn't dismissed it permanently
+      if (shouldShowGuidelines()) {
+        setShowGuidelines(true);
+      } else {
+        setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+      }
     } catch (err) {
       setState(prev => ({ ...prev, error: 'Magic key needed!' }));
     }
@@ -516,6 +525,7 @@ const App: React.FC = () => {
     setShowOutOfCredits(false);
     setShowPricingModal(false);
     setSelectedProduct(null);
+    setShowGuidelines(false);
   };
 
   const handleStorybookClose = async () => {
@@ -944,6 +954,16 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Upload Guidelines Modal */}
+      <UploadGuidelines
+        isOpen={showGuidelines}
+        onClose={() => setShowGuidelines(false)}
+        onContinue={() => {
+          setShowGuidelines(false);
+          setState(prev => ({ ...prev, step: AppStep.UPLOAD }));
+        }}
+      />
 
       {/* Pricing Modal */}
       <PricingModal

@@ -164,25 +164,32 @@ export const generateAnimation = async (
     const downloadLink = generatedVideos?.[0]?.video?.uri;
 
     if (!downloadLink) {
-      let errorMessage = 'Video generation completed but no video was returned';
-      let errorType: VideoGenerationError['type'] = 'unknown';
+      console.error('[Veo Error] Full operation response:', JSON.stringify(operation, null, 2));
 
-      if ((generatedVideos?.[0] as any)?.filterReason || (operation.response as any)?.blockReason) {
-        errorMessage = `Video was filtered: ${(generatedVideos?.[0] as any)?.filterReason ?? (operation.response as any)?.blockReason}`;
-        errorType = 'content_filtered';
-      } else if (!generatedVideos || generatedVideos.length === 0) {
-        errorMessage = 'Video generation returned empty results';
-        errorType = 'generation_failed';
-      } else if (!generatedVideos[0]?.video) {
-        errorMessage = 'Video generation returned a result with no video data';
-        errorType = 'generation_failed';
+      // Check for RAI content filter
+      const raiReasons = (operation as any).operationResponse?.raiMediaFilteredReasons;
+      if (raiReasons && raiReasons.length > 0) {
+        console.error('[Veo Error] Content filtered:', raiReasons);
+        // User-friendly message for the photo filter
+        if (raiReasons[0]?.includes('photorealistic children')) {
+          throw new VideoGenerationError(
+            'content_filtered',
+            'Oops! Our video maker works best with hand-drawn artwork. Try uploading a drawing on paper instead of a photo!'
+          );
+        }
+        throw new VideoGenerationError('content_filtered', `Content filtered: ${raiReasons[0]}`);
       }
 
-      await logError('video_generation_failed', errorMessage, {
-        operationResponse: operation.response,
-      });
+      // Check for other failure reasons
+      const firstVideo = generatedVideos?.[0];
+      if ((firstVideo as any)?.video?.state === 'FAILED') {
+        throw new VideoGenerationError(
+          'generation_failed',
+          `Video generation failed: ${(firstVideo as any)?.video?.error?.message || 'Unknown reason'}`
+        );
+      }
 
-      throw new VideoGenerationError(errorType, errorMessage);
+      throw new VideoGenerationError('unknown', 'The magic portal closed! Try again.');
     }
 
     const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
