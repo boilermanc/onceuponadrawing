@@ -13,8 +13,11 @@ interface EditionPickerProps {
   onBack: () => void;
 }
 
+// Temporary flag while waiting for Lulu PDF approval
+const PHYSICAL_BOOKS_ENABLED = false;
+
 const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
-  const [selected, setSelected] = useState<ProductType>(ProductType.SOFTCOVER);
+  const [selected, setSelected] = useState<ProductType>(ProductType.EBOOK);
   const { prices, loading, error } = usePrices();
 
   const getSelectedPrice = (): BookPrice | null => {
@@ -101,11 +104,12 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
 
                 {/* Softcover */}
                 <button
-                  onClick={() => setSelected(ProductType.SOFTCOVER)}
-                  disabled={!prices.softcover}
-                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.SOFTCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.softcover ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  onClick={() => PHYSICAL_BOOKS_ENABLED && setSelected(ProductType.SOFTCOVER)}
+                  disabled={!PHYSICAL_BOOKS_ENABLED || !prices.softcover}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.SOFTCOVER && PHYSICAL_BOOKS_ENABLED ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!PHYSICAL_BOOKS_ENABLED ? 'opacity-50 cursor-not-allowed grayscale' : !prices.softcover ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
                 >
-                  {selected === ProductType.SOFTCOVER && prices.softcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                  {!PHYSICAL_BOOKS_ENABLED && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
+                  {selected === ProductType.SOFTCOVER && PHYSICAL_BOOKS_ENABLED && prices.softcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                     <div className="flex items-center gap-3 sm:gap-6">
                       <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📕</span>
@@ -125,11 +129,12 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
 
                 {/* Hardcover */}
                 <button
-                  onClick={() => setSelected(ProductType.HARDCOVER)}
-                  disabled={!prices.hardcover}
-                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.HARDCOVER ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.hardcover ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  onClick={() => PHYSICAL_BOOKS_ENABLED && setSelected(ProductType.HARDCOVER)}
+                  disabled={!PHYSICAL_BOOKS_ENABLED || !prices.hardcover}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.HARDCOVER && PHYSICAL_BOOKS_ENABLED ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!PHYSICAL_BOOKS_ENABLED ? 'opacity-50 cursor-not-allowed grayscale' : !prices.hardcover ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
                 >
-                  {selected === ProductType.HARDCOVER && prices.hardcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                  {!PHYSICAL_BOOKS_ENABLED && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
+                  {selected === ProductType.HARDCOVER && PHYSICAL_BOOKS_ENABLED && prices.hardcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                     <div className="flex items-center gap-3 sm:gap-6">
                       <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📖</span>
