@@ -194,6 +194,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [previewResults, setPreviewResults] = useState<Map<string, PreviewResult>>(new Map());
   const [selectedBookTypes, setSelectedBookTypes] = useState<Map<string, string>>(new Map()); // creationId -> bookType
 
+  // Pagination and search state
+  const [previewSearch, setPreviewSearch] = useState('');
+  const [creationsPage, setCreationsPage] = useState(0);
+  const [hasMoreCreations, setHasMoreCreations] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const CREATIONS_PAGE_SIZE = 10;
+
   // Get book prices from context
   const { prices: contextPrices } = usePrices();
   const bookPrices = {
@@ -389,36 +396,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const fetchCreations = async () => {
-    setIsLoading(true);
+  const fetchCreations = async (reset = true) => {
+    if (reset) {
+      setIsLoading(true);
+      setCreationsPage(0);
+      setCreations([]);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
+
     try {
+      const offset = reset ? 0 : creationsPage * CREATIONS_PAGE_SIZE;
       const { data, error: fetchError } = await supabase
         .from('creations')
         .select('*, is_featured, featured_at, featured_thumbnail_url, featured_page_url, featured_pages, analysis_json')
         .order('created_at', { ascending: false })
-        .limit(50); // Limit to most recent 50 creations
+        .range(offset, offset + CREATIONS_PAGE_SIZE - 1);
 
       if (fetchError) {
         throw fetchError;
       }
 
-      // Generate public URLs for thumbnails (no auth needed for public URLs)
-      if (data && data.length > 0) {
-        const creationsWithThumbnails = data.map((creation) => {
-          if (creation.page_images && creation.page_images.length > 0) {
-            const pagePath = creation.page_images[0];
-            const { data: { publicUrl } } = supabase.storage
-              .from('outputs')
-              .getPublicUrl(pagePath);
-            return { ...creation, thumbnail_url: publicUrl };
-          }
-          return creation;
-        });
+      // Check if there are more results
+      setHasMoreCreations(data?.length === CREATIONS_PAGE_SIZE);
 
-        setCreations(creationsWithThumbnails);
+      // Generate public URLs for thumbnails (no auth needed for public URLs)
+      const processedData = (data || []).map((creation) => {
+        if (creation.page_images && creation.page_images.length > 0) {
+          const pagePath = creation.page_images[0];
+          const { data: { publicUrl } } = supabase.storage
+            .from('outputs')
+            .getPublicUrl(pagePath);
+          return { ...creation, thumbnail_url: publicUrl };
+        }
+        return creation;
+      });
+
+      if (reset) {
+        setCreations(processedData);
+        setCreationsPage(1);
       } else {
-        setCreations(data || []);
+        setCreations(prev => [...prev, ...processedData]);
+        setCreationsPage(prev => prev + 1);
       }
       setCreationsLoaded(true);
     } catch (err: any) {
@@ -426,6 +446,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setError(err.message || 'Failed to fetch creations');
     } finally {
       setIsLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const loadMoreCreations = () => {
+    if (!loadingMore && hasMoreCreations) {
+      fetchCreations(false);
     }
   };
 
@@ -1179,13 +1206,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-soft-gold/10 to-pacific-cyan/10">
-              <h2 className="font-bold text-gunmetal flex items-center gap-2">
-                <span className="text-2xl">🖨️</span>
-                Print Preview & Test
-              </h2>
-              <p className="text-sm text-blue-slate mt-1">
-                Generate print-ready PDFs for testing without submitting orders to Lulu
-              </p>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h2 className="font-bold text-gunmetal flex items-center gap-2">
+                    <span className="text-2xl">🖨️</span>
+                    Print Preview & Test
+                  </h2>
+                  <p className="text-sm text-blue-slate mt-1">
+                    Generate print-ready PDFs for testing without submitting orders to Lulu
+                  </p>
+                </div>
+                {/* Search box */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by title or artist..."
+                    value={previewSearch}
+                    onChange={(e) => setPreviewSearch(e.target.value)}
+                    className="pl-10 pr-4 py-2 rounded-xl border-2 border-slate-200 focus:border-pacific-cyan outline-none text-sm w-64"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                </div>
+              </div>
             </div>
 
             {isLoading ? (
@@ -1206,7 +1248,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             ) : (
               <div className="p-6 space-y-4">
-                {creations.map((creation) => {
+                {/* Filtered creations count */}
+                {previewSearch && (
+                  <p className="text-sm text-blue-slate">
+                    Showing {creations.filter(c =>
+                      (c.title?.toLowerCase() || '').includes(previewSearch.toLowerCase()) ||
+                      (c.artist_name?.toLowerCase() || '').includes(previewSearch.toLowerCase()) ||
+                      c.id.includes(previewSearch)
+                    ).length} of {creations.length} creations
+                  </p>
+                )}
+                {creations
+                  .filter(creation => {
+                    if (!previewSearch) return true;
+                    const search = previewSearch.toLowerCase();
+                    return (
+                      (creation.title?.toLowerCase() || '').includes(search) ||
+                      (creation.artist_name?.toLowerCase() || '').includes(search) ||
+                      creation.id.includes(previewSearch)
+                    );
+                  })
+                  .map((creation) => {
                   const previewResult = previewResults.get(creation.id);
                   const isGenerating = previewLoading === creation.id;
 
@@ -1224,8 +1286,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <p className="text-sm text-blue-slate">
                             by {creation.artist_name || 'Unknown Artist'}
                           </p>
-                          <p className="text-xs text-silver mt-1">
-                            {formatDate(creation.created_at)}
+                          <p className="text-xs text-silver mt-1 font-mono">
+                            {formatDate(creation.created_at)} · {creation.id.slice(0, 8)}...
                           </p>
                         </div>
 
@@ -1413,6 +1475,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   );
                 })}
+
+                {/* Load More button */}
+                {!previewSearch && hasMoreCreations && (
+                  <div className="pt-4 text-center">
+                    <button
+                      onClick={loadMoreCreations}
+                      disabled={loadingMore}
+                      className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-gunmetal font-bold rounded-xl transition-all disabled:opacity-50"
+                    >
+                      {loadingMore ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin" />
+                          Loading...
+                        </span>
+                      ) : (
+                        `Load More (${creations.length} loaded)`
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* End of list indicator */}
+                {!previewSearch && !hasMoreCreations && creations.length > 0 && (
+                  <p className="text-center text-sm text-silver pt-4">
+                    All {creations.length} creations loaded
+                  </p>
+                )}
               </div>
             )}
           </div>
