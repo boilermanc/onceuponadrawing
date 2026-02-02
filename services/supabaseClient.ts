@@ -13,16 +13,8 @@ const storageKey =
       ? 'sb-onceupon-local-auth'
       : `sb-onceupon-${host}-auth`;
 
-console.log('[supabaseClient] Initializing with:', {
-  url: supabaseUrl,
-  keyPrefix: supabaseAnonKey?.substring(0, 20) + '...',
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseAnonKey,
-  storageKey,
-});
-
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase credentials missing. Auth and DB will not work.");
+  console.warn("[supabaseClient] Supabase credentials missing. Auth and DB will not work.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -34,7 +26,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
     flowType: 'pkce',
     lockType: 'mem',
-    debug: true,
+    // Only enable debug in development when explicitly needed
+    debug: false,
   },
 });
 

@@ -23,9 +23,10 @@ const Stories: React.FC = () => {
       const sortCol = sorting[0]?.id || 'created_at';
       const sortAsc = sorting[0] ? !sorting[0].desc : false;
 
+      // Only select fields needed for the table - avoid heavy data
       let query = supabase
         .from('creations')
-        .select('*, profiles!creations_user_id_profiles_fkey(first_name, last_name, email)', { count: 'exact' })
+        .select('id, title, artist_name, created_at, video_path, is_featured, profiles!creations_user_id_profiles_fkey(first_name, last_name, email)', { count: 'exact' })
         .eq('is_deleted', false)
         .order(sortCol, { ascending: sortAsc })
         .range(from, to);

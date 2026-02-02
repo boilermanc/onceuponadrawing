@@ -13,12 +13,8 @@ interface Creation {
   is_featured?: boolean;
   featured_at?: string;
   featured_thumbnail_url?: string;
-  featured_page_url?: string;
   featured_pages?: { url: string; text: string }[];
   thumbnail_url?: string;
-  analysis_json?: {
-    pages?: { text: string; imageUrl?: string }[];
-  };
   created_at: string;
 }
 
@@ -38,9 +34,10 @@ const Gallery: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Only fetch fields needed for the list view - avoid heavy data like analysis_json
       const { data, error: fetchError } = await supabase
         .from('creations')
-        .select('*, is_featured, featured_at, featured_thumbnail_url, featured_page_url, featured_pages, analysis_json')
+        .select('id, title, artist_name, age, created_at, is_featured, featured_at, featured_thumbnail_url, featured_pages, page_images')
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -79,6 +76,13 @@ const Gallery: React.FC = () => {
         throw new Error('No page images available for this creation');
       }
 
+      // Fetch analysis_json only when featuring (not in list view)
+      const { data: fullCreation } = await supabase
+        .from('creations')
+        .select('analysis_json')
+        .eq('id', creation.id)
+        .single();
+
       const pagesToUpload = creation.page_images.slice(0, 4);
       const featuredPages: { url: string; text: string }[] = [];
 
@@ -105,7 +109,7 @@ const Gallery: React.FC = () => {
             .from('public-gallery')
             .getPublicUrl(fileName);
 
-          const pageText = creation.analysis_json?.pages?.[i]?.text || '';
+          const pageText = fullCreation?.analysis_json?.pages?.[i]?.text || '';
           featuredPages.push({ url: publicUrl, text: pageText });
         } catch {
           continue;
