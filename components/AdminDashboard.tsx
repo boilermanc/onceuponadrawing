@@ -351,14 +351,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Track if data has been loaded to avoid unnecessary refetches
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [creationsLoaded, setCreationsLoaded] = useState(false);
+
   useEffect(() => {
     if (isAdmin) {
-      fetchOrders();
-      if (activeTab === 'preview' || activeTab === 'gallery') {
+      // Only fetch orders once
+      if (!ordersLoaded) {
+        fetchOrders();
+      }
+      // Only fetch creations once when switching to those tabs
+      if ((activeTab === 'preview' || activeTab === 'gallery') && !creationsLoaded) {
         fetchCreations();
       }
     }
-  }, [isAdmin, activeTab]);
+  }, [isAdmin, activeTab, ordersLoaded, creationsLoaded]);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -367,10 +375,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const { data, error: fetchError } = await supabase
         .from('book_orders')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Limit to most recent 100 orders
 
       if (fetchError) throw fetchError;
       setOrders(data || []);
+      setOrdersLoaded(true);
     } catch (err: any) {
       console.error('Failed to fetch orders:', err);
       setError(err.message || 'Failed to fetch orders');
@@ -383,53 +393,34 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      console.log('[AdminDashboard] Fetching creations...');
-      const { data, error: fetchError, count } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('creations')
-        .select('*, is_featured, featured_at, featured_thumbnail_url, featured_page_url, featured_pages, analysis_json', { count: 'exact' })
+        .select('*, is_featured, featured_at, featured_thumbnail_url, featured_page_url, featured_pages, analysis_json')
         .order('created_at', { ascending: false })
         .limit(50); // Limit to most recent 50 creations
 
-      console.log('[AdminDashboard] Creations query result:', { 
-        count: data?.length, 
-        error: fetchError,
-        firstCreation: data?.[0],
-        featuredCount: data?.filter(c => c.is_featured).length
-      });
-
       if (fetchError) {
-        console.error('[AdminDashboard] Query error:', fetchError);
         throw fetchError;
       }
-      
-      console.log(`[AdminDashboard] Found ${data?.length || 0} creations, ${data?.filter(c => c.is_featured).length} featured`);
-      
-      // Generate public URLs for thumbnails
+
+      // Generate public URLs for thumbnails (no auth needed for public URLs)
       if (data && data.length > 0) {
         const creationsWithThumbnails = data.map((creation) => {
-          // Try to get the first page image as thumbnail from outputs bucket
           if (creation.page_images && creation.page_images.length > 0) {
             const pagePath = creation.page_images[0];
-            console.log('[AdminDashboard] Getting thumbnail for creation:', creation.id, 'from outputs bucket, path:', pagePath);
-            
-            // Get public URL from outputs bucket
             const { data: { publicUrl } } = supabase.storage
               .from('outputs')
               .getPublicUrl(pagePath);
-            
-            console.log('[AdminDashboard] Generated thumbnail URL:', publicUrl);
             return { ...creation, thumbnail_url: publicUrl };
           }
-          
-          // Return creation without thumbnail if no page_images
-          console.warn('[AdminDashboard] No page_images found for creation:', creation.id, creation.title);
           return creation;
         });
-        
+
         setCreations(creationsWithThumbnails);
       } else {
         setCreations(data || []);
       }
+      setCreationsLoaded(true);
     } catch (err: any) {
       console.error('[AdminDashboard] Failed to fetch creations:', err);
       setError(err.message || 'Failed to fetch creations');
@@ -1010,7 +1001,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex gap-2 mb-8 flex-wrap items-center">
           <button
             onClick={() => setActiveTab('orders')}
             className={`px-6 py-3 rounded-xl font-bold transition-all ${
@@ -1060,6 +1051,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             📧 Emails
+          </button>
+          {/* Refresh button */}
+          <button
+            onClick={() => {
+              if (activeTab === 'orders') {
+                setOrdersLoaded(false);
+                fetchOrders();
+              } else if (activeTab === 'preview' || activeTab === 'gallery') {
+                setCreationsLoaded(false);
+                fetchCreations();
+              }
+            }}
+            disabled={isLoading}
+            className="ml-auto px-4 py-3 rounded-xl font-bold transition-all bg-slate-100 text-gunmetal hover:bg-slate-200 disabled:opacity-50"
+            title="Refresh data"
+          >
+            {isLoading ? '...' : '🔄'}
           </button>
         </div>
 
