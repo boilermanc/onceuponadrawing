@@ -31,14 +31,14 @@ const Videos: React.FC = () => {
     setVideoLoading(true);
     setVideoUrl(null);
 
-    // Strip bucket prefix if present (video_path may include "videos/")
+    // Strip bucket prefix if present (video_path may include "videos/" from old data)
     const stripBucketPrefix = (path: string) => path.replace(/^videos\//, '');
     const cleanPath = stripBucketPrefix(video.video_path);
 
     try {
       // Use signed URL since bucket may be private
       const { data, error } = await supabase.storage
-        .from('videos')
+        .from('public-videos')
         .createSignedUrl(cleanPath, 3600); // 1 hour expiry
 
       if (!error && data) {
@@ -47,7 +47,7 @@ const Videos: React.FC = () => {
     } catch {
       // Fallback to public URL if signed URL fails
       const { data: { publicUrl } } = supabase.storage
-        .from('videos')
+        .from('public-videos')
         .getPublicUrl(cleanPath);
       setVideoUrl(publicUrl);
     } finally {
