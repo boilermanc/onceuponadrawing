@@ -4,6 +4,13 @@ import { Star, Loader2, RefreshCw, Eye, X, ChevronLeft, ChevronRight } from 'luc
 import { supabase } from '../../../services/supabaseClient';
 import SearchInput from '../components/SearchInput';
 
+interface StoryPage {
+  pageNumber: number;
+  text: string;
+  imagePrompt: string;
+  imageUrl?: string;
+}
+
 interface Creation {
   id: string;
   title: string;
@@ -31,6 +38,7 @@ const Gallery: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewingCreation, setViewingCreation] = useState<Creation | null>(null);
   const [viewPageUrls, setViewPageUrls] = useState<string[]>([]);
+  const [viewPageTexts, setViewPageTexts] = useState<string[]>([]);
   const [viewCurrentPage, setViewCurrentPage] = useState(0);
   const [viewLoading, setViewLoading] = useState(false);
 
@@ -198,8 +206,20 @@ const Gallery: React.FC = () => {
     setViewingCreation(creation);
     setViewCurrentPage(0);
     setViewLoading(true);
+    setViewPageUrls([]);
+    setViewPageTexts([]);
 
     try {
+      // Fetch analysis_json to get page texts
+      const { data: fullCreation } = await supabase
+        .from('creations')
+        .select('analysis_json')
+        .eq('id', creation.id)
+        .single();
+
+      const pages: StoryPage[] = fullCreation?.analysis_json?.pages || [];
+      setViewPageTexts(pages.map((p) => p.text || ''));
+
       // Generate signed URLs for all page images (bucket is private)
       if (creation.page_images && creation.page_images.length > 0) {
         const urlPromises = creation.page_images.map(async (path) => {
@@ -210,11 +230,10 @@ const Gallery: React.FC = () => {
         });
         const urls = (await Promise.all(urlPromises)).filter((url): url is string => url !== null);
         setViewPageUrls(urls);
-      } else {
-        setViewPageUrls([]);
       }
     } catch {
       setViewPageUrls([]);
+      setViewPageTexts([]);
     } finally {
       setViewLoading(false);
     }
@@ -223,6 +242,7 @@ const Gallery: React.FC = () => {
   const closeViewModal = () => {
     setViewingCreation(null);
     setViewPageUrls([]);
+    setViewPageTexts([]);
     setViewCurrentPage(0);
   };
 
@@ -424,7 +444,7 @@ const Gallery: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+              className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -441,8 +461,8 @@ const Gallery: React.FC = () => {
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="p-6">
+              {/* Content - Book Layout */}
+              <div className="flex-1 overflow-hidden">
                 {viewLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 size={32} className="animate-spin text-slate-400" />
@@ -452,59 +472,72 @@ const Gallery: React.FC = () => {
                     No pages available for this story
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {/* Page Image */}
-                    <div className="relative bg-slate-100 rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
-                      <img
-                        src={viewPageUrls[viewCurrentPage]}
-                        alt={`Page ${viewCurrentPage + 1}`}
-                        className="w-full h-full object-contain"
-                      />
+                  <div className="h-full flex flex-col">
+                    {/* Book spread - Image left, Text right */}
+                    <div className="flex-1 flex flex-col md:flex-row min-h-0">
+                      {/* Left page - Image */}
+                      <div className="w-full md:w-1/2 h-64 md:h-auto bg-slate-100 relative">
+                        <img
+                          src={viewPageUrls[viewCurrentPage]}
+                          alt={`Page ${viewCurrentPage + 1}`}
+                          className="w-full h-full object-contain"
+                        />
+                        {/* Navigation arrows */}
+                        <button
+                          onClick={() => setViewCurrentPage((p) => Math.max(0, p - 1))}
+                          disabled={viewCurrentPage === 0}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 rounded-full shadow-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        <button
+                          onClick={() => setViewCurrentPage((p) => Math.min(viewPageUrls.length - 1, p + 1))}
+                          disabled={viewCurrentPage === viewPageUrls.length - 1}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 rounded-full shadow-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      </div>
 
-                      {/* Navigation arrows */}
+                      {/* Right page - Text */}
+                      <div className="w-full md:w-1/2 bg-[#fffdf9] p-6 md:p-10 flex flex-col justify-center items-center text-center relative overflow-y-auto">
+                        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/paper-fibers.png')]" />
+                        <div className="relative z-10 max-w-md">
+                          <div className="text-slate-300 text-4xl font-serif mb-4">"</div>
+                          <p className="text-lg md:text-xl font-medium text-slate-800 leading-relaxed font-serif italic">
+                            {viewPageTexts[viewCurrentPage] || 'No text for this page'}
+                          </p>
+                          <div className="text-slate-300 text-4xl font-serif mt-4 rotate-180">"</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer with page indicator and thumbnails */}
+                    <div className="p-4 border-t border-slate-200 bg-slate-50">
+                      {/* Page indicator */}
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <span className="text-sm text-slate-600">
+                          Page {viewCurrentPage + 1} of {viewPageUrls.length}
+                        </span>
+                      </div>
+
+                      {/* Thumbnail navigation */}
                       {viewPageUrls.length > 1 && (
-                        <>
-                          <button
-                            onClick={() => setViewCurrentPage((p) => Math.max(0, p - 1))}
-                            disabled={viewCurrentPage === 0}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 rounded-full shadow-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                          >
-                            <ChevronLeft size={24} />
-                          </button>
-                          <button
-                            onClick={() => setViewCurrentPage((p) => Math.min(viewPageUrls.length - 1, p + 1))}
-                            disabled={viewCurrentPage === viewPageUrls.length - 1}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 rounded-full shadow-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                          >
-                            <ChevronRight size={24} />
-                          </button>
-                        </>
+                        <div className="flex gap-2 overflow-x-auto pb-1 justify-center">
+                          {viewPageUrls.map((url, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setViewCurrentPage(idx)}
+                              className={`flex-shrink-0 w-12 h-12 rounded-md overflow-hidden border-2 transition-all ${
+                                idx === viewCurrentPage ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              <img src={url} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-
-                    {/* Page indicator */}
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-sm text-slate-600">
-                        Page {viewCurrentPage + 1} of {viewPageUrls.length}
-                      </span>
-                    </div>
-
-                    {/* Thumbnail navigation */}
-                    {viewPageUrls.length > 1 && (
-                      <div className="flex gap-2 overflow-x-auto pb-2 justify-center">
-                        {viewPageUrls.map((url, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setViewCurrentPage(idx)}
-                            className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
-                              idx === viewCurrentPage ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <img src={url} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
