@@ -58,12 +58,16 @@ const Gallery: React.FC = () => {
       if (fetchError) throw fetchError;
 
       // Generate signed URLs for thumbnails (bucket is private)
+      // Note: page_images paths may include bucket prefix, so we strip it
+      const stripBucketPrefix = (path: string) => path.replace(/^page-images\//, '');
+
       const withThumbnails = await Promise.all(
         (data || []).map(async (creation) => {
           if (creation.page_images && creation.page_images.length > 0) {
+            const cleanPath = stripBucketPrefix(creation.page_images[0]);
             const { data: signedData, error } = await supabase.storage
               .from('page-images')
-              .createSignedUrl(creation.page_images[0], 3600);
+              .createSignedUrl(cleanPath, 3600);
             if (!error && signedData) {
               return { ...creation, thumbnail_url: signedData.signedUrl };
             }
@@ -222,11 +226,15 @@ const Gallery: React.FC = () => {
       setViewPageTexts(pages.map((p) => p.text || ''));
 
       // Generate signed URLs for all page images (bucket is private)
+      // Note: page_images paths may include bucket prefix, so we strip it
+      const stripBucketPrefix = (path: string) => path.replace(/^page-images\//, '');
+
       if (creation.page_images && creation.page_images.length > 0) {
         const urlPromises = creation.page_images.map(async (path) => {
+          const cleanPath = stripBucketPrefix(path);
           const { data, error } = await supabase.storage
             .from('page-images')
-            .createSignedUrl(path, 3600); // 1 hour expiry
+            .createSignedUrl(cleanPath, 3600); // 1 hour expiry
           return error ? null : data.signedUrl;
         });
         const urls = (await Promise.all(urlPromises)).filter((url): url is string => url !== null);
