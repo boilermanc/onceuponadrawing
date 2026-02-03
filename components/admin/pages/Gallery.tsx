@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Loader2, RefreshCw } from 'lucide-react';
+import { Star, Loader2, RefreshCw, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import SearchInput from '../components/SearchInput';
 
@@ -29,6 +29,10 @@ const Gallery: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortField>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewingCreation, setViewingCreation] = useState<Creation | null>(null);
+  const [viewPageUrls, setViewPageUrls] = useState<string[]>([]);
+  const [viewCurrentPage, setViewCurrentPage] = useState(0);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const fetchCreations = useCallback(async () => {
     setIsLoading(true);
@@ -185,6 +189,37 @@ const Gallery: React.FC = () => {
     }
   };
 
+  const handleView = async (creation: Creation) => {
+    setViewingCreation(creation);
+    setViewCurrentPage(0);
+    setViewLoading(true);
+
+    try {
+      // Generate public URLs for all page images
+      if (creation.page_images && creation.page_images.length > 0) {
+        const urls = creation.page_images.map((path) => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('page-images')
+            .getPublicUrl(path);
+          return publicUrl;
+        });
+        setViewPageUrls(urls);
+      } else {
+        setViewPageUrls([]);
+      }
+    } catch {
+      setViewPageUrls([]);
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const closeViewModal = () => {
+    setViewingCreation(null);
+    setViewPageUrls([]);
+    setViewCurrentPage(0);
+  };
+
   const filteredCreations = creations
     .filter((c) => {
       if (!c.thumbnail_url) return false;
@@ -331,25 +366,34 @@ const Gallery: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => isFeatured ? handleUnfeature(creation) : handleFeature(creation)}
-                          disabled={isProcessing || !creation.thumbnail_url}
-                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                            isProcessing
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              : !creation.thumbnail_url
-                              ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                              : isFeatured
-                              ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                              : 'bg-amber-500 text-white hover:bg-amber-600'
-                          }`}
-                        >
-                          {isProcessing ? (
-                            <span className="flex items-center gap-1.5">
-                              <Loader2 size={12} className="animate-spin" /> Processing
-                            </span>
-                          ) : isFeatured ? 'Unfeature' : 'Feature'}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleView(creation)}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            title="View Story"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => isFeatured ? handleUnfeature(creation) : handleFeature(creation)}
+                            disabled={isProcessing || !creation.thumbnail_url}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                              isProcessing
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : !creation.thumbnail_url
+                                ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                                : isFeatured
+                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                : 'bg-amber-500 text-white hover:bg-amber-600'
+                            }`}
+                          >
+                            {isProcessing ? (
+                              <span className="flex items-center gap-1.5">
+                                <Loader2 size={12} className="animate-spin" /> Processing
+                              </span>
+                            ) : isFeatured ? 'Unfeature' : 'Feature'}
+                          </button>
+                        </div>
                       </td>
                     </motion.tr>
                   );
@@ -359,6 +403,109 @@ const Gallery: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* View Story Modal */}
+      <AnimatePresence>
+        {viewingCreation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            onClick={closeViewModal}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-slate-900">{viewingCreation.title || 'Untitled'}</h3>
+                  <p className="text-sm text-slate-500">by {viewingCreation.artist_name || 'Unknown'}</p>
+                </div>
+                <button
+                  onClick={closeViewModal}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6">
+                {viewLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 size={32} className="animate-spin text-slate-400" />
+                  </div>
+                ) : viewPageUrls.length === 0 ? (
+                  <div className="text-center py-20 text-slate-400">
+                    No pages available for this story
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Page Image */}
+                    <div className="relative bg-slate-100 rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
+                      <img
+                        src={viewPageUrls[viewCurrentPage]}
+                        alt={`Page ${viewCurrentPage + 1}`}
+                        className="w-full h-full object-contain"
+                      />
+
+                      {/* Navigation arrows */}
+                      {viewPageUrls.length > 1 && (
+                        <>
+                          <button
+                            onClick={() => setViewCurrentPage((p) => Math.max(0, p - 1))}
+                            disabled={viewCurrentPage === 0}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 rounded-full shadow-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <ChevronLeft size={24} />
+                          </button>
+                          <button
+                            onClick={() => setViewCurrentPage((p) => Math.min(viewPageUrls.length - 1, p + 1))}
+                            disabled={viewCurrentPage === viewPageUrls.length - 1}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 rounded-full shadow-lg hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <ChevronRight size={24} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Page indicator */}
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm text-slate-600">
+                        Page {viewCurrentPage + 1} of {viewPageUrls.length}
+                      </span>
+                    </div>
+
+                    {/* Thumbnail navigation */}
+                    {viewPageUrls.length > 1 && (
+                      <div className="flex gap-2 overflow-x-auto pb-2 justify-center">
+                        {viewPageUrls.map((url, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setViewCurrentPage(idx)}
+                            className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
+                              idx === viewCurrentPage ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <img src={url} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
