@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ColumnDef, SortingState } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, X } from 'lucide-react';
+import { Play, X, Loader2 } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import DataTable from '../components/DataTable';
 import SearchInput from '../components/SearchInput';
@@ -24,18 +24,37 @@ const Videos: React.FC = () => {
   const [search, setSearch] = useState('');
   const [viewingVideo, setViewingVideo] = useState<VideoCreation | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
 
-  const handlePlayVideo = (video: VideoCreation) => {
-    const { data: { publicUrl } } = supabase.storage
-      .from('videos')
-      .getPublicUrl(video.video_path);
-    setVideoUrl(publicUrl);
+  const handlePlayVideo = async (video: VideoCreation) => {
     setViewingVideo(video);
+    setVideoLoading(true);
+    setVideoUrl(null);
+
+    try {
+      // Use signed URL since bucket may be private
+      const { data, error } = await supabase.storage
+        .from('videos')
+        .createSignedUrl(video.video_path, 3600); // 1 hour expiry
+
+      if (!error && data) {
+        setVideoUrl(data.signedUrl);
+      }
+    } catch {
+      // Fallback to public URL if signed URL fails
+      const { data: { publicUrl } } = supabase.storage
+        .from('videos')
+        .getPublicUrl(video.video_path);
+      setVideoUrl(publicUrl);
+    } finally {
+      setVideoLoading(false);
+    }
   };
 
   const closeVideoModal = () => {
     setViewingVideo(null);
     setVideoUrl(null);
+    setVideoLoading(false);
   };
 
   const { data, isLoading } = useQuery({
@@ -146,7 +165,7 @@ const Videos: React.FC = () => {
 
       {/* Video Player Modal */}
       <AnimatePresence>
-        {viewingVideo && videoUrl && (
+        {viewingVideo && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -177,15 +196,25 @@ const Videos: React.FC = () => {
 
               {/* Video Player */}
               <div className="bg-black">
-                <video
-                  src={videoUrl}
-                  controls
-                  autoPlay
-                  className="w-full max-h-[70vh]"
-                  style={{ aspectRatio: '16/9' }}
-                >
-                  Your browser does not support the video tag.
-                </video>
+                {videoLoading ? (
+                  <div className="flex items-center justify-center py-32" style={{ aspectRatio: '16/9' }}>
+                    <Loader2 size={48} className="animate-spin text-white" />
+                  </div>
+                ) : videoUrl ? (
+                  <video
+                    src={videoUrl}
+                    controls
+                    autoPlay
+                    className="w-full max-h-[70vh]"
+                    style={{ aspectRatio: '16/9' }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <div className="flex items-center justify-center py-32 text-white" style={{ aspectRatio: '16/9' }}>
+                    Failed to load video
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
