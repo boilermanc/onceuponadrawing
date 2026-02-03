@@ -8,7 +8,7 @@ interface Creation {
   id: string;
   title: string;
   artist_name: string;
-  age: string | null;
+  artist_age: string | null;
   page_images?: string[];
   is_featured?: boolean;
   featured_at?: string;
@@ -37,7 +37,7 @@ const Gallery: React.FC = () => {
       // Only fetch fields needed for the list view - avoid heavy data like analysis_json
       const { data, error: fetchError } = await supabase
         .from('creations')
-        .select('id, title, artist_name, age, created_at, is_featured, featured_at, featured_thumbnail_url, featured_pages, page_images')
+        .select('id, title, artist_name, artist_age, created_at, is_featured, featured_at, featured_thumbnail_url, featured_pages, page_images')
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -317,7 +317,7 @@ const Gallery: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-900">{creation.title || 'Untitled'}</td>
                       <td className="px-4 py-3 text-slate-600">{creation.artist_name || 'Unknown'}</td>
-                      <td className="px-4 py-3 text-slate-500">{creation.age || '-'}</td>
+                      <td className="px-4 py-3 text-slate-500">{creation.artist_age || '-'}</td>
                       <td className="px-4 py-3 text-slate-500">
                         {new Date(creation.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
