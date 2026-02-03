@@ -48,15 +48,20 @@ const Gallery: React.FC = () => {
 
       if (fetchError) throw fetchError;
 
-      const withThumbnails = (data || []).map((creation) => {
-        if (creation.page_images && creation.page_images.length > 0) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('page-images')
-            .getPublicUrl(creation.page_images[0]);
-          return { ...creation, thumbnail_url: publicUrl };
-        }
-        return creation;
-      });
+      // Generate signed URLs for thumbnails (bucket is private)
+      const withThumbnails = await Promise.all(
+        (data || []).map(async (creation) => {
+          if (creation.page_images && creation.page_images.length > 0) {
+            const { data: signedData, error } = await supabase.storage
+              .from('page-images')
+              .createSignedUrl(creation.page_images[0], 3600);
+            if (!error && signedData) {
+              return { ...creation, thumbnail_url: signedData.signedUrl };
+            }
+          }
+          return creation;
+        })
+      );
 
       setCreations(withThumbnails);
     } catch (err: any) {
@@ -195,14 +200,15 @@ const Gallery: React.FC = () => {
     setViewLoading(true);
 
     try {
-      // Generate public URLs for all page images
+      // Generate signed URLs for all page images (bucket is private)
       if (creation.page_images && creation.page_images.length > 0) {
-        const urls = creation.page_images.map((path) => {
-          const { data: { publicUrl } } = supabase.storage
+        const urlPromises = creation.page_images.map(async (path) => {
+          const { data, error } = await supabase.storage
             .from('page-images')
-            .getPublicUrl(path);
-          return publicUrl;
+            .createSignedUrl(path, 3600); // 1 hour expiry
+          return error ? null : data.signedUrl;
         });
+        const urls = (await Promise.all(urlPromises)).filter((url): url is string => url !== null);
         setViewPageUrls(urls);
       } else {
         setViewPageUrls([]);
