@@ -22,9 +22,10 @@ const Customers: React.FC = () => {
       const sortCol = sorting[0]?.id || 'created_at';
       const sortAsc = sorting[0] ? !sorting[0].desc : false;
 
+      // Only select fields needed for the table
       let query = supabase
         .from('profiles')
-        .select('*', { count: 'exact' })
+        .select('id, first_name, last_name, email, created_at, credit_balance', { count: 'exact' })
         .order(sortCol, { ascending: sortAsc })
         .range(from, to);
 

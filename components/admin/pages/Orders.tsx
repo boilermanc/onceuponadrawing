@@ -39,9 +39,10 @@ const Orders: React.FC = () => {
       const sortCol = sorting[0]?.id || 'created_at';
       const sortAsc = sorting[0] ? !sorting[0].desc : false;
 
+      // Only select fields needed for the table - avoid heavy data
       let query = supabase
         .from('book_orders')
-        .select('*, profiles!book_orders_user_id_profiles_fkey(first_name, last_name)', { count: 'exact' })
+        .select('id, order_type, amount_paid, status, created_at, tracking_number, shipping_name, shipping_email, profiles!book_orders_user_id_profiles_fkey(first_name, last_name)', { count: 'exact' })
         .order(sortCol, { ascending: sortAsc })
         .range(from, to);
 
