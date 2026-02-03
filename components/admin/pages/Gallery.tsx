@@ -47,7 +47,7 @@ const Gallery: React.FC = () => {
       const withThumbnails = (data || []).map((creation) => {
         if (creation.page_images && creation.page_images.length > 0) {
           const { data: { publicUrl } } = supabase.storage
-            .from('outputs')
+            .from('page-images')
             .getPublicUrl(creation.page_images[0]);
           return { ...creation, thumbnail_url: publicUrl };
         }
