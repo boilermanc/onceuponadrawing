@@ -117,7 +117,13 @@ const Videos: React.FC = () => {
       cell: ({ row }) => {
         const p = row.original.profiles;
         if (!p) return <span className="text-slate-400">-</span>;
-        return <span className="text-slate-600">{p.email || '-'}</span>;
+        const name = p.first_name ? `${p.first_name} ${p.last_name || ''}`.trim() : null;
+        return (
+          <div className="text-slate-600">
+            {name && <div className="font-medium text-slate-900">{name}</div>}
+            <div className="text-xs text-slate-500">{p.email || '-'}</div>
+          </div>
+        );
       },
       enableSorting: false,
     },

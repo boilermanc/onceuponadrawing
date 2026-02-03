@@ -23,6 +23,7 @@ interface Creation {
   featured_pages?: { url: string; text: string }[];
   thumbnail_url?: string;
   created_at: string;
+  profiles?: { first_name?: string; last_name?: string; email?: string };
 }
 
 type SortField = 'created_at' | 'title' | 'artist_name';
@@ -49,7 +50,7 @@ const Gallery: React.FC = () => {
       // Only fetch fields needed for the list view - avoid heavy data like analysis_json
       const { data, error: fetchError } = await supabase
         .from('creations')
-        .select('id, title, artist_name, artist_age, created_at, is_featured, featured_at, featured_thumbnail_url, featured_pages, page_images')
+        .select('id, title, artist_name, artist_age, created_at, is_featured, featured_at, featured_thumbnail_url, featured_pages, page_images, profiles!creations_user_id_profiles_fkey(first_name, last_name, email)')
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -343,6 +344,7 @@ const Gallery: React.FC = () => {
                     Artist <SortIndicator field="artist_name" />
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider bg-slate-50">Age</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider bg-slate-50">Customer</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider bg-slate-50 cursor-pointer hover:text-slate-700" onClick={() => handleSort('created_at')}>
                     Created <SortIndicator field="created_at" />
                   </th>
@@ -379,6 +381,20 @@ const Gallery: React.FC = () => {
                       <td className="px-4 py-3 font-medium text-slate-900">{creation.title || 'Untitled'}</td>
                       <td className="px-4 py-3 text-slate-600">{creation.artist_name || 'Unknown'}</td>
                       <td className="px-4 py-3 text-slate-500">{creation.artist_age || '-'}</td>
+                      <td className="px-4 py-3">
+                        {creation.profiles ? (
+                          <div className="text-slate-600">
+                            {creation.profiles.first_name && (
+                              <div className="font-medium text-slate-900">
+                                {`${creation.profiles.first_name} ${creation.profiles.last_name || ''}`.trim()}
+                              </div>
+                            )}
+                            <div className="text-xs text-slate-500">{creation.profiles.email || '-'}</div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-slate-500">
                         {new Date(creation.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
