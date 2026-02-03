@@ -2,15 +2,41 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ColumnDef, SortingState } from '@tanstack/react-table';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, X } from 'lucide-react';
 import { supabase } from '../../../services/supabaseClient';
 import DataTable from '../components/DataTable';
 import SearchInput from '../components/SearchInput';
+
+interface VideoCreation {
+  id: string;
+  title: string;
+  artist_name: string;
+  video_path: string;
+  created_at: string;
+  profiles?: { first_name?: string; last_name?: string; email?: string };
+}
 
 const Videos: React.FC = () => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
   const [search, setSearch] = useState('');
+  const [viewingVideo, setViewingVideo] = useState<VideoCreation | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  const handlePlayVideo = (video: VideoCreation) => {
+    const { data: { publicUrl } } = supabase.storage
+      .from('videos')
+      .getPublicUrl(video.video_path);
+    setVideoUrl(publicUrl);
+    setViewingVideo(video);
+  };
+
+  const closeVideoModal = () => {
+    setViewingVideo(null);
+    setVideoUrl(null);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-videos', page, pageSize, sorting, search],
@@ -40,6 +66,21 @@ const Videos: React.FC = () => {
   });
 
   const columns = useMemo<ColumnDef<any>[]>(() => [
+    {
+      id: 'play',
+      header: '',
+      cell: ({ row }) => (
+        <button
+          onClick={() => handlePlayVideo(row.original)}
+          className="p-2 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+          title="Play Video"
+        >
+          <Play size={18} fill="currentColor" />
+        </button>
+      ),
+      enableSorting: false,
+      size: 50,
+    },
     {
       accessorKey: 'title',
       header: 'Story Title',
@@ -102,6 +143,54 @@ const Videos: React.FC = () => {
         onSortingChange={setSorting}
         isLoading={isLoading}
       />
+
+      {/* Video Player Modal */}
+      <AnimatePresence>
+        {viewingVideo && videoUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            onClick={closeVideoModal}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl max-w-4xl w-full overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-slate-900">{viewingVideo.title || 'Untitled'}</h3>
+                  <p className="text-sm text-slate-500">by {viewingVideo.artist_name || 'Unknown'}</p>
+                </div>
+                <button
+                  onClick={closeVideoModal}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Video Player */}
+              <div className="bg-black">
+                <video
+                  src={videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full max-h-[70vh]"
+                  style={{ aspectRatio: '16/9' }}
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
