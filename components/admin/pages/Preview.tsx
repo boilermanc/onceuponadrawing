@@ -106,7 +106,9 @@ const Preview: React.FC = () => {
         return;
       }
 
-      const data = await response.json();
+      const rawData = await response.json();
+      // n8n returns an array, extract the first element
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
 
       if (!data || data.success === false) {
         setPreviewResults((prev) => new Map(prev).set(creationId, {
