@@ -80,6 +80,12 @@ const Preview: React.FC = () => {
 
   const generatePreview = async (creationId: string) => {
     setPreviewLoading(creationId);
+    // Clear any previous result for this creation
+    setPreviewResults((prev) => {
+      const next = new Map(prev);
+      next.delete(creationId);
+      return next;
+    });
     try {
       const bookType = selectedBookTypes.get(creationId) || 'softcover';
 
