@@ -6,6 +6,15 @@ import { usePrices } from '../../../contexts/PricesContext';
 
 interface PreviewResult {
   success: boolean;
+  // New format from n8n/PDF generator
+  interiorUrl?: string;
+  coverUrl?: string;
+  interiorPath?: string;
+  coverPath?: string;
+  pageCount?: number;
+  isPreview?: boolean;
+  creationId?: string;
+  // Legacy format (kept for compatibility)
   creation?: { id: string; title: string; artistName: string };
   pdfs?: {
     interior: { url: string; sizeMB: number };
@@ -204,7 +213,7 @@ const Preview: React.FC = () => {
                 {/* Result */}
                 {result && (
                   <div className="mt-4 pt-4 border-t border-slate-100">
-                    {result.success && result.pdfs ? (
+                    {result.success && (result.interiorUrl || result.pdfs) ? (
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
                           PDFs generated successfully
@@ -213,32 +222,46 @@ const Preview: React.FC = () => {
                         {/* Download links */}
                         <div className="grid grid-cols-2 gap-3">
                           <a
-                            href={result.pdfs.interior.url}
+                            href={result.interiorUrl || result.pdfs?.interior.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-md hover:bg-slate-100 transition-colors"
                           >
                             <div>
                               <div className="text-sm font-medium text-slate-900">Interior PDF</div>
-                              <div className="text-xs text-slate-500">{result.pdfs.interior.sizeMB} MB</div>
+                              {result.pdfs?.interior.sizeMB && (
+                                <div className="text-xs text-slate-500">{result.pdfs.interior.sizeMB} MB</div>
+                              )}
                             </div>
                             <Download size={16} className="text-slate-400" />
                           </a>
                           <a
-                            href={result.pdfs.cover.url}
+                            href={result.coverUrl || result.pdfs?.cover.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-md hover:bg-slate-100 transition-colors"
                           >
                             <div>
                               <div className="text-sm font-medium text-slate-900">Cover PDF</div>
-                              <div className="text-xs text-slate-500">{result.pdfs.cover.sizeMB} MB</div>
+                              {result.pdfs?.cover.sizeMB && (
+                                <div className="text-xs text-slate-500">{result.pdfs.cover.sizeMB} MB</div>
+                              )}
                             </div>
                             <Download size={16} className="text-slate-400" />
                           </a>
                         </div>
 
-                        {/* Specs */}
+                        {/* Page count from new format */}
+                        {result.pageCount && (
+                          <div className="bg-slate-50 border border-slate-200 rounded-md p-4">
+                            <div className="text-sm">
+                              <span className="text-slate-400">Pages: </span>
+                              <span className="text-slate-900 font-mono">{result.pageCount}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Specs from legacy format */}
                         {result.specs && (
                           <div className="bg-slate-50 border border-slate-200 rounded-md p-4">
                             <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Print Specifications</h4>
