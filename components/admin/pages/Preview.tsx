@@ -218,8 +218,21 @@ const Preview: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Loading State */}
+                {isGenerating && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-md px-4 py-3">
+                      <Loader2 size={18} className="animate-spin text-slate-400" />
+                      <div>
+                        <div className="font-medium">Creating your book preview...</div>
+                        <div className="text-xs text-slate-400 mt-0.5">This may take a minute or two</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Result */}
-                {result && (
+                {!isGenerating && result && (
                   <div className="mt-4 pt-4 border-t border-slate-100">
                     {result.success && (result.interiorUrl || result.pdfs) ? (
                       <div className="space-y-4">
