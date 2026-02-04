@@ -20,7 +20,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform',
 };
 
 // Decode JWT to check if user is admin
@@ -123,35 +123,63 @@ Deno.serve(async (req) => {
 
     console.log('[generate-book-preview] Creation found:', creation.title);
 
-    // Step 2: Convert storage paths to public URLs
-    async function getPublicUrl(bucketName: string, path: string): Promise<string> {
+    // Step 2: Convert storage paths to signed URLs
+    async function getSignedUrl(bucketName: string, path: string): Promise<string> {
       if (!path) return '';
-      
+
       // If already a full URL, return as-is
       if (path.startsWith('http')) return path;
-      
-      // Get public URL from storage
-      const { data } = supabase.storage
+
+      // Get signed URL from storage
+      const { data, error } = await supabase.storage
         .from(bucketName)
-        .getPublicUrl(path);
-      
-      return data.publicUrl;
+        .createSignedUrl(path, 60 * 60); // 1 hour expiry
+
+      if (error || !data?.signedUrl) {
+        console.error(`[generate-book-preview] Failed to get signed URL for ${bucketName}/${path}:`, error);
+        return '';
+      }
+      return data.signedUrl;
     }
 
-    // Get URLs for images
-    const originalImageUrl = creation.original_image_path 
-      ? await getPublicUrl('originals', creation.original_image_path)
+    // Get URLs for images (stored in 'drawings' bucket)
+    const originalImageUrl = creation.original_image_path
+      ? await getSignedUrl('drawings', creation.original_image_path)
       : '';
     
     const heroImageUrl = originalImageUrl; // Use same image for hero
     
-    // Handle story pages from analysis_json
-    let storyPages = [];
-    if (creation.analysis_json?.pages) {
-      storyPages = creation.analysis_json.pages;
-    } else if (creation.story_pages) {
-      storyPages = creation.story_pages;
-    }
+    // Handle story pages from analysis_json with signed URLs from page_images
+    const rawPages = creation.analysis_json?.pages || [];
+    const pageImagePaths: string[] = creation.page_images || [];
+
+    // Generate signed URLs for each page image
+    console.log('[generate-book-preview] Generating signed URLs for', pageImagePaths.length, 'page images...');
+    const storyPages = await Promise.all(
+      rawPages.map(async (page: { pageNumber: number; text: string; imageUrl: string }, index: number) => {
+        const pagePath = pageImagePaths[index];
+        let imageUrl = page.imageUrl; // fallback to original URL
+
+        if (pagePath) {
+          const signedUrl = await getSignedUrl('page-images', pagePath);
+          if (signedUrl) {
+            imageUrl = signedUrl;
+            console.log(`[generate-book-preview] Page ${index + 1}: signed URL obtained`);
+          } else {
+            console.warn(`[generate-book-preview] Page ${index + 1}: failed to get signed URL, using fallback`);
+          }
+        } else {
+          console.warn(`[generate-book-preview] Page ${index + 1}: no page_images path, using original imageUrl`);
+        }
+
+        return {
+          pageNumber: page.pageNumber,
+          text: page.text,
+          imageUrl,
+        };
+      })
+    );
+    console.log('[generate-book-preview] Story pages prepared:', storyPages.length);
 
     const bookContent: BookContent = {
       title: creation.title || 'Untitled Story',

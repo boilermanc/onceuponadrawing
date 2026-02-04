@@ -73,24 +73,31 @@ const Preview: React.FC = () => {
     setPreviewLoading(creationId);
     try {
       const bookType = selectedBookTypes.get(creationId) || 'softcover';
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No active session');
 
-      const { data, error } = await supabase.functions.invoke('generate-book-preview', {
-        body: { creationId, bookType },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      // Use n8n webhook for PDF generation (same endpoint as ebook processing)
+      const response = await fetch('https://n8n.sproutify.app/webhook/74539b5d-b1cb-4ff9-8083-d4f34cce5866', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          creationId,
+          bookType,
+          isPreview: true, // Flag to indicate this is a preview request
+        }),
       });
 
-      if (error) {
-        let errorMessage = 'Failed to generate preview';
-        let errorDetails = error.message || 'Unknown error';
-        if (data && typeof data === 'object') {
-          if ('error' in data) errorMessage = String(data.error);
-          if ('details' in data) errorDetails = String(data.details);
-        }
-        setPreviewResults((prev) => new Map(prev).set(creationId, { success: false, error: errorMessage, details: errorDetails }));
+      if (!response.ok) {
+        const errorText = await response.text();
+        setPreviewResults((prev) => new Map(prev).set(creationId, {
+          success: false,
+          error: 'Failed to generate preview',
+          details: errorText || `HTTP ${response.status}`,
+        }));
         return;
       }
+
+      const data = await response.json();
 
       if (!data || data.success === false) {
         setPreviewResults((prev) => new Map(prev).set(creationId, {
