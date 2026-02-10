@@ -99,6 +99,31 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   
+  // "This Book Belongs To" page
+  console.log('[PDF Generator] Creating "This Book Belongs To" page...');
+  const belongsToPage = pdfDoc.addPage([INTERIOR_WIDTH, INTERIOR_HEIGHT]);
+
+  const belongsToText = 'This Book Belongs To';
+  const belongsToTextWidth = boldFont.widthOfTextAtSize(belongsToText, 32);
+  belongsToPage.drawText(belongsToText, {
+    x: (INTERIOR_WIDTH - belongsToTextWidth) / 2,
+    y: INTERIOR_HEIGHT / 2 + 40,
+    size: 32,
+    font: boldFont,
+    color: rgb(0.25, 0.25, 0.25),
+  });
+
+  // Horizontal line for handwriting name
+  const lineWidth = INTERIOR_WIDTH * 0.6;
+  const lineX = (INTERIOR_WIDTH - lineWidth) / 2;
+  const lineY = INTERIOR_HEIGHT / 2 - 30;
+  belongsToPage.drawLine({
+    start: { x: lineX, y: lineY },
+    end: { x: lineX + lineWidth, y: lineY },
+    thickness: 1.5,
+    color: rgb(0.4, 0.4, 0.4),
+  });
+
   // Title Page
   console.log('[PDF Generator] Creating title page...');
   const titlePage = pdfDoc.addPage([INTERIOR_WIDTH, INTERIOR_HEIGHT]);
@@ -251,6 +276,50 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
     });
   }
   
+  // "Draw Here" page
+  console.log('[PDF Generator] Creating "Draw Here" page...');
+  const drawPage = pdfDoc.addPage([INTERIOR_WIDTH, INTERIOR_HEIGHT]);
+
+  const drawTitle = 'Your Turn to Draw!';
+  const drawTitleWidth = boldFont.widthOfTextAtSize(drawTitle, 32);
+  drawPage.drawText(drawTitle, {
+    x: (INTERIOR_WIDTH - drawTitleWidth) / 2,
+    y: INTERIOR_HEIGHT - 80,
+    size: 32,
+    font: boldFont,
+    color: rgb(0.2, 0.2, 0.2),
+  });
+
+  // Empty canvas frame
+  const frameMargin = 60;
+  const frameTop = INTERIOR_HEIGHT - 130;
+  const frameBottom = 80;
+  const frameLeft = frameMargin;
+  const frameRight = INTERIOR_WIDTH - frameMargin;
+  const frameWidth = frameRight - frameLeft;
+  const frameHeight = frameTop - frameBottom;
+
+  drawPage.drawRectangle({
+    x: frameLeft,
+    y: frameBottom,
+    width: frameWidth,
+    height: frameHeight,
+    borderColor: rgb(0.6, 0.6, 0.6),
+    borderWidth: 1.5,
+    color: rgb(1, 1, 1),
+  });
+
+  // Small inspirational text below frame
+  const inspirationText = 'Every artist starts with a blank page';
+  const inspirationWidth = font.widthOfTextAtSize(inspirationText, 12);
+  drawPage.drawText(inspirationText, {
+    x: (INTERIOR_WIDTH - inspirationWidth) / 2,
+    y: frameBottom - 30,
+    size: 12,
+    font: font,
+    color: rgb(0.5, 0.5, 0.5),
+  });
+
   // Ensure even page count (Lulu requirement)
   const currentPageCount = pdfDoc.getPageCount();
   if (currentPageCount % 2 !== 0) {
