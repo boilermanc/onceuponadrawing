@@ -100,7 +100,7 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   
   // "This Book Belongs To" page
-  console.log('[PDF Generator] Creating "This Book Belongs To" page...');
+  console.log('>>> ADDING BELONGS_TO PAGE - page count before:', pdfDoc.getPageCount());
   const belongsToPage = pdfDoc.addPage([INTERIOR_WIDTH, INTERIOR_HEIGHT]);
 
   const belongsToText = 'This Book Belongs To';
@@ -123,6 +123,8 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
     thickness: 1.5,
     color: rgb(0.4, 0.4, 0.4),
   });
+
+  console.log('>>> BELONGS_TO PAGE ADDED - page count after:', pdfDoc.getPageCount());
 
   // Title Page
   console.log('[PDF Generator] Creating title page...');
@@ -277,7 +279,7 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
   }
   
   // "Draw Here" page
-  console.log('[PDF Generator] Creating "Draw Here" page...');
+  console.log('>>> ADDING YOUR_TURN PAGE - page count before:', pdfDoc.getPageCount());
   const drawPage = pdfDoc.addPage([INTERIOR_WIDTH, INTERIOR_HEIGHT]);
 
   const drawTitle = 'Your Turn to Draw!';
@@ -320,6 +322,8 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
     color: rgb(0.5, 0.5, 0.5),
   });
 
+  console.log('>>> YOUR_TURN PAGE ADDED - page count after:', pdfDoc.getPageCount());
+
   // Ensure even page count (Lulu requirement)
   const currentPageCount = pdfDoc.getPageCount();
   if (currentPageCount % 2 !== 0) {
@@ -329,6 +333,7 @@ export async function generateInteriorPdf(content: BookContent): Promise<Uint8Ar
   
   console.log('[PDF Generator] Final page count:', pdfDoc.getPageCount());
   
+  console.log('>>> TOTAL PAGE COUNT BEFORE SAVE:', pdfDoc.getPageCount());
   const pdfBytes = await pdfDoc.save();
   console.log('[PDF Generator] Production interior PDF generated:', pdfBytes.length, 'bytes');
   
