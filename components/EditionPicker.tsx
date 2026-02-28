@@ -13,12 +13,14 @@ interface EditionPickerProps {
   onBack: () => void;
 }
 
-// Temporary flag while waiting for Lulu PDF approval
-const PHYSICAL_BOOKS_ENABLED = false;
-
 const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
   const [selected, setSelected] = useState<ProductType>(ProductType.EBOOK);
   const { prices, loading, error } = usePrices();
+
+  // Per-product availability from admin config (default true while loading)
+  const ebookEnabled = prices?.availability?.ebook ?? true;
+  const softcoverEnabled = prices?.availability?.softcover ?? true;
+  const hardcoverEnabled = prices?.availability?.hardcover ?? true;
 
   const getSelectedPrice = (): BookPrice | null => {
     if (!prices) return null;
@@ -80,11 +82,12 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
               <div className="space-y-4">
                 {/* Ebook */}
                 <button
-                  onClick={() => setSelected(ProductType.EBOOK)}
-                  disabled={!prices.ebook}
-                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.EBOOK ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver hover:border-blue-slate'} ${!prices.ebook ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  onClick={() => ebookEnabled && setSelected(ProductType.EBOOK)}
+                  disabled={!ebookEnabled || !prices.ebook}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.EBOOK && ebookEnabled ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!ebookEnabled ? 'opacity-50 cursor-not-allowed grayscale' : !prices.ebook ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
                 >
-                  {selected === ProductType.EBOOK && prices.ebook && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                  {!ebookEnabled && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
+                  {selected === ProductType.EBOOK && ebookEnabled && prices.ebook && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                     <div className="flex items-center gap-3 sm:gap-6">
                       <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">💻</span>
@@ -104,12 +107,12 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
 
                 {/* Softcover */}
                 <button
-                  onClick={() => PHYSICAL_BOOKS_ENABLED && setSelected(ProductType.SOFTCOVER)}
-                  disabled={!PHYSICAL_BOOKS_ENABLED || !prices.softcover}
-                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.SOFTCOVER && PHYSICAL_BOOKS_ENABLED ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!PHYSICAL_BOOKS_ENABLED ? 'opacity-50 cursor-not-allowed grayscale' : !prices.softcover ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
+                  onClick={() => softcoverEnabled && setSelected(ProductType.SOFTCOVER)}
+                  disabled={!softcoverEnabled || !prices.softcover}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.SOFTCOVER && softcoverEnabled ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!softcoverEnabled ? 'opacity-50 cursor-not-allowed grayscale' : !prices.softcover ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
                 >
-                  {!PHYSICAL_BOOKS_ENABLED && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
-                  {selected === ProductType.SOFTCOVER && PHYSICAL_BOOKS_ENABLED && prices.softcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                  {!softcoverEnabled && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
+                  {selected === ProductType.SOFTCOVER && softcoverEnabled && prices.softcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                     <div className="flex items-center gap-3 sm:gap-6">
                       <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📕</span>
@@ -129,12 +132,12 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
 
                 {/* Hardcover */}
                 <button
-                  onClick={() => PHYSICAL_BOOKS_ENABLED && setSelected(ProductType.HARDCOVER)}
-                  disabled={!PHYSICAL_BOOKS_ENABLED || !prices.hardcover}
-                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.HARDCOVER && PHYSICAL_BOOKS_ENABLED ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!PHYSICAL_BOOKS_ENABLED ? 'opacity-50 cursor-not-allowed grayscale' : !prices.hardcover ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
+                  onClick={() => hardcoverEnabled && setSelected(ProductType.HARDCOVER)}
+                  disabled={!hardcoverEnabled || !prices.hardcover}
+                  className={`group relative w-full p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-4 text-left transition-all ${selected === ProductType.HARDCOVER && hardcoverEnabled ? 'border-pacific-cyan bg-pacific-cyan/5' : 'border-silver'} ${!hardcoverEnabled ? 'opacity-50 cursor-not-allowed grayscale' : !prices.hardcover ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-slate'}`}
                 >
-                  {!PHYSICAL_BOOKS_ENABLED && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
-                  {selected === ProductType.HARDCOVER && PHYSICAL_BOOKS_ENABLED && prices.hardcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
+                  {!hardcoverEnabled && <div className="absolute -top-3 right-6 bg-amber-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Coming Soon</div>}
+                  {selected === ProductType.HARDCOVER && hardcoverEnabled && prices.hardcover && <div className="absolute -top-3 right-6 bg-pacific-cyan text-white text-[8px] font-black px-3 py-1 rounded-full uppercase">Selected</div>}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
                     <div className="flex items-center gap-3 sm:gap-6">
                       <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform flex-shrink-0">📖</span>
@@ -179,7 +182,7 @@ const EditionPicker: React.FC<EditionPickerProps> = ({ onSelect, onBack }) => {
           <Button
             size="lg"
             onClick={() => onSelect(selected)}
-            disabled={loading || !!error || !selectedPrice}
+            disabled={loading || !!error || !selectedPrice || (selected === ProductType.EBOOK && !ebookEnabled) || (selected === ProductType.SOFTCOVER && !softcoverEnabled) || (selected === ProductType.HARDCOVER && !hardcoverEnabled)}
           >
             <span className="flex items-center gap-2">
               Continue

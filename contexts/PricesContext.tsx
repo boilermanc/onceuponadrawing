@@ -9,10 +9,17 @@ interface BookPrice {
   productName: string;
 }
 
+interface ProductAvailability {
+  ebook: boolean;
+  softcover: boolean;
+  hardcover: boolean;
+}
+
 interface BookPricesResponse {
   ebook: BookPrice | null;
   softcover: BookPrice | null;
   hardcover: BookPrice | null;
+  availability: ProductAvailability;
 }
 
 interface PricesContextType {
@@ -40,7 +47,10 @@ export function PricesProvider({ children }: { children: React.ReactNode }) {
       const { data, error: fnError } = await supabase.functions.invoke('get-book-prices');
 
       if (fnError) throw fnError;
-      setPrices(data);
+      setPrices({
+        ...data,
+        availability: data.availability ?? { ebook: true, softcover: true, hardcover: true },
+      });
     } catch (err) {
       console.error('Failed to fetch prices:', err);
       setError(err instanceof Error ? err.message : 'Failed to load prices');
@@ -65,4 +75,4 @@ export function usePrices() {
 }
 
 // Re-export types for consumers
-export type { BookPrice, BookPricesResponse };
+export type { BookPrice, BookPricesResponse, ProductAvailability };

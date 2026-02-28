@@ -1,3 +1,4 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { LOOKUP_KEYS, getPricesByLookupKeys, formatPrice, StripePrice } from '../_shared/stripe-pricing.ts';
 
 const corsHeaders = {
@@ -35,16 +36,40 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const lookupKeys = [
-      LOOKUP_KEYS.books.digital,
-      LOOKUP_KEYS.books.softcover,
-      LOOKUP_KEYS.books.hardcover,
-    ];
+    // Fetch prices and availability in parallel
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
 
-    const prices = await getPricesByLookupKeys(lookupKeys);
+    const [prices, availabilityResult] = await Promise.all([
+      getPricesByLookupKeys([
+        LOOKUP_KEYS.books.digital,
+        LOOKUP_KEYS.books.softcover,
+        LOOKUP_KEYS.books.hardcover,
+      ]),
+      supabaseClient
+        .from('config_settings')
+        .select('key, value, data_type')
+        .eq('category', 'products')
+        .in('key', ['ebook_enabled', 'softcover_enabled', 'hardcover_enabled']),
+    ])
+
     const priceMap = new Map<string, StripePrice>(prices.map(p => [p.lookup_key, p]));
 
-    const response: Record<string, any> = {};
+    // Parse availability flags (default to true if not found)
+    const availabilityMap: Record<string, boolean> = {}
+    for (const row of availabilityResult.data || []) {
+      availabilityMap[row.key] = row.value === 'true' || row.value === '1'
+    }
+
+    const response: Record<string, any> = {
+      availability: {
+        ebook: availabilityMap.ebook_enabled ?? true,
+        softcover: availabilityMap.softcover_enabled ?? true,
+        hardcover: availabilityMap.hardcover_enabled ?? true,
+      },
+    };
 
     const ebookPrice = priceMap.get(LOOKUP_KEYS.books.digital);
     if (ebookPrice) {

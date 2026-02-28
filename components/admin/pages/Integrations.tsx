@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Printer, Sparkles, Database, ChevronDown,
   Eye, EyeOff, Loader2, CheckCircle, XCircle, Save,
-  Power, Zap, X,
+  Power, Zap, X, BookOpen,
 } from 'lucide-react';
 import { useSettings, useBulkUpdateSettings } from '../../../hooks/useSettings';
 import { useTestIntegration, type TestResult } from '../../../hooks/useTestIntegration';
@@ -214,6 +214,12 @@ const DEFAULT_INTEGRATION_SETTINGS: Record<string, { value: any; dataType: strin
   supabase_anon_key: { value: '', dataType: 'string' },
 };
 
+const DEFAULT_PRODUCT_SETTINGS: Record<string, { value: any; dataType: string }> = {
+  ebook_enabled: { value: true, dataType: 'boolean' },
+  softcover_enabled: { value: true, dataType: 'boolean' },
+  hardcover_enabled: { value: true, dataType: 'boolean' },
+};
+
 // ============================================================================
 // Health Helpers
 // ============================================================================
@@ -246,8 +252,9 @@ const Integrations: React.FC = () => {
   const { testConnection, testing } = useTestIntegration();
 
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [productData, setProductData] = useState<Record<string, any>>({});
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    stripe: false, lulu: false, gemini: false, supabase: false,
+    products: false, stripe: false, lulu: false, gemini: false, supabase: false,
   });
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [testModal, setTestModal] = useState<{
@@ -290,10 +297,22 @@ const Integrations: React.FC = () => {
     });
 
     setFormData(newFormData);
+
+    // Initialize product availability settings
+    const productSettings = settings.products || {};
+    const newProductData: Record<string, any> = {};
+    Object.entries(DEFAULT_PRODUCT_SETTINGS).forEach(([key, config]) => {
+      newProductData[key] = productSettings[key] ?? config.value;
+    });
+    setProductData(newProductData);
   }, [settings]);
 
   const updateField = useCallback((key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const updateProductField = useCallback((key: string, value: any) => {
+    setProductData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const toggleSection = useCallback((section: string) => {
@@ -344,12 +363,22 @@ const Integrations: React.FC = () => {
       dataType: 'string',
     };
 
-    const success = await bulkUpdate('integrations', settingsToSave);
-    if (success) {
-      setSaveMessage({ type: 'success', text: 'Integration settings saved successfully' });
+    // Save product availability settings
+    const productSettingsToSave: Record<string, { value: any; dataType: string }> = {};
+    Object.entries(DEFAULT_PRODUCT_SETTINGS).forEach(([key, config]) => {
+      productSettingsToSave[key] = { value: productData[key] ?? config.value, dataType: config.dataType };
+    });
+
+    const [integrationSuccess, productSuccess] = await Promise.all([
+      bulkUpdate('integrations', settingsToSave),
+      bulkUpdate('products', productSettingsToSave),
+    ]);
+
+    if (integrationSuccess && productSuccess) {
+      setSaveMessage({ type: 'success', text: 'Settings saved successfully' });
       refetch();
     } else {
-      setSaveMessage({ type: 'error', text: 'Failed to save settings' });
+      setSaveMessage({ type: 'error', text: 'Failed to save some settings' });
     }
     setTimeout(() => setSaveMessage(null), 3000);
   };
@@ -371,7 +400,22 @@ const Integrations: React.FC = () => {
   );
   const geminiStatus = getConnectionStatus(!!formData.gemini_enabled, !!formData.gemini_api_key);
 
+  const enabledProducts = [
+    productData.ebook_enabled && 'Ebook',
+    productData.softcover_enabled && 'Softcover',
+    productData.hardcover_enabled && 'Hardcover',
+  ].filter(Boolean);
+
   const health = {
+    products: {
+      status: (enabledProducts.length === 3 ? 'healthy' : enabledProducts.length > 0 ? 'warning' : 'error') as HealthStatus,
+      label: enabledProducts.length === 3 ? 'All enabled' : enabledProducts.length > 0 ? `${enabledProducts.length}/3 enabled` : 'All disabled',
+      metrics: [
+        { label: 'Ebook', value: productData.ebook_enabled ? 'On' : 'Off' },
+        { label: 'Softcover', value: productData.softcover_enabled ? 'On' : 'Off' },
+        { label: 'Hardcover', value: productData.hardcover_enabled ? 'On' : 'Off' },
+      ],
+    } as IntegrationHealth,
     stripe: {
       status: toHealthStatus(stripeStatus),
       label: getHealthLabel(stripeStatus),
@@ -447,7 +491,13 @@ const Integrations: React.FC = () => {
       </AnimatePresence>
 
       {/* Health Overview Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <HealthCard
+          title="Products"
+          icon={<BookOpen size={16} />}
+          health={health.products}
+          onClick={() => scrollToSection('products')}
+        />
         <HealthCard
           title="Stripe"
           icon={<CreditCard size={16} />}
@@ -475,6 +525,39 @@ const Integrations: React.FC = () => {
           onClick={() => scrollToSection('supabase')}
         />
       </div>
+
+      {/* ================================================================ */}
+      {/* PRODUCT AVAILABILITY SECTION */}
+      {/* ================================================================ */}
+      <IntegrationSection
+        id="products"
+        title="Product Availability"
+        icon={<BookOpen size={16} />}
+        expanded={expandedSections.products}
+        onToggle={() => toggleSection('products')}
+        health={health.products}
+      >
+        <p className="text-xs text-slate-500">
+          Control which book editions are available for purchase. Disabled editions show as "Coming Soon" in the store.
+        </p>
+        <div className="space-y-4">
+          <Toggle
+            checked={!!productData.ebook_enabled}
+            onChange={(v) => updateProductField('ebook_enabled', v)}
+            label="Digital Ebook"
+          />
+          <Toggle
+            checked={!!productData.softcover_enabled}
+            onChange={(v) => updateProductField('softcover_enabled', v)}
+            label="Softcover Book"
+          />
+          <Toggle
+            checked={!!productData.hardcover_enabled}
+            onChange={(v) => updateProductField('hardcover_enabled', v)}
+            label="Hardcover Book"
+          />
+        </div>
+      </IntegrationSection>
 
       {/* ================================================================ */}
       {/* STRIPE SECTION */}
