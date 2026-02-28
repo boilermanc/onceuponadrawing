@@ -13,6 +13,7 @@ import Orders from './pages/Orders';
 import Gallery from './pages/Gallery';
 import Preview from './pages/Preview';
 import Emails from './pages/Emails';
+import Integrations from './pages/Integrations';
 import Settings from './pages/Settings';
 
 const queryClient = new QueryClient({
@@ -195,6 +196,7 @@ const AdminAppInner: React.FC<AdminAppProps> = ({ userEmail, isAuthenticated, on
     gallery: <Gallery />,
     preview: <Preview />,
     emails: <Emails adminEmail={effectiveEmail || ''} />,
+    integrations: <Integrations />,
     settings: <Settings />,
   };
 

@@ -11,6 +11,7 @@ const pageTitles: Record<AdminPage, string> = {
   gallery: 'Gallery',
   preview: 'Print Preview',
   emails: 'Emails',
+  integrations: 'Integrations',
   settings: 'Settings',
 };
 

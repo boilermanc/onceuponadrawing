@@ -12,9 +12,10 @@ import {
   Image,
   Printer,
   Mail,
+  Plug,
 } from 'lucide-react';
 
-export type AdminPage = 'dashboard' | 'customers' | 'stories' | 'videos' | 'orders' | 'gallery' | 'preview' | 'emails' | 'settings';
+export type AdminPage = 'dashboard' | 'customers' | 'stories' | 'videos' | 'orders' | 'gallery' | 'preview' | 'emails' | 'integrations' | 'settings';
 
 interface NavItem {
   id: AdminPage;
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { id: 'gallery', label: 'Gallery', icon: Image, separator: true },
   { id: 'preview', label: 'Print Preview', icon: Printer },
   { id: 'emails', label: 'Emails', icon: Mail },
+  { id: 'integrations', label: 'Integrations', icon: Plug },
   { id: 'settings', label: 'Settings', icon: Settings, separator: true },
 ];
 
