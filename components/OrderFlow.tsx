@@ -1,9 +1,13 @@
 
 import React, { useState } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import { DrawingAnalysis, ProductType, ShippingInfo } from '../types';
 import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
 import { usePrices } from '../contexts/PricesContext';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 interface ShippingOption {
   shippingOptionId: string;
@@ -30,7 +34,7 @@ interface OrderFlowProps {
 
 const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, userEmail, isGift, coverColorId, textColorId, selectedEdition, onClose, onComplete }) => {
   const isEbook = selectedEdition === ProductType.EBOOK;
-  const [step, setStep] = useState<'DEDICATION' | 'SHIPPING' | 'LOADING_RATES' | 'SELECT_SHIPPING' | 'REVIEW'>('DEDICATION');
+  const [step, setStep] = useState<'DEDICATION' | 'SHIPPING' | 'LOADING_RATES' | 'SELECT_SHIPPING' | 'REVIEW' | 'PAYMENT'>('DEDICATION');
   const [product] = useState<ProductType>(selectedEdition);
   const [dedication, setDedication] = useState(analysis.dedication || '');
 
@@ -50,6 +54,7 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
   // Checkout state
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const [shipping, setShipping] = useState<ShippingInfo>({
     fullName: '',
@@ -132,6 +137,10 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
       setStep('SHIPPING');
     } else if (step === 'REVIEW') {
       setStep(isEbook ? 'DEDICATION' : 'SELECT_SHIPPING');
+    } else if (step === 'PAYMENT') {
+      setClientSecret(null);
+      setIsCheckingOut(false);
+      setStep('REVIEW');
     }
   };
 
@@ -197,13 +206,15 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
         throw new Error(errorData.error || 'Failed to create checkout');
       }
 
-      const { url } = await response.json();
+      const { clientSecret: secret } = await response.json();
 
-      if (!url) {
-        throw new Error('No checkout URL returned');
+      if (!secret) {
+        throw new Error('No client secret returned');
       }
 
-      window.location.href = url;
+      setClientSecret(secret);
+      setStep('PAYMENT');
+      setIsCheckingOut(false);
     } catch (error) {
       console.error('Checkout error:', error);
       setCheckoutError(error instanceof Error ? error.message : 'Failed to start checkout');
@@ -224,13 +235,14 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
     if (isEbook) {
       return step === 'DEDICATION' ? 50 : 100;
     }
-    // Physical book: DEDICATION (20%) -> SHIPPING (40%) -> LOADING_RATES (60%) -> SELECT_SHIPPING (80%) -> REVIEW (100%)
+    // Physical book: DEDICATION (20%) -> SHIPPING (40%) -> LOADING_RATES (60%) -> SELECT_SHIPPING (80%) -> REVIEW/PAYMENT (100%)
     switch (step) {
       case 'DEDICATION': return 20;
       case 'SHIPPING': return 40;
       case 'LOADING_RATES': return 60;
       case 'SELECT_SHIPPING': return 80;
       case 'REVIEW': return 100;
+      case 'PAYMENT': return 100;
       default: return 0;
     }
   };
@@ -471,11 +483,11 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                 </div>
               )}
 
-              {/* Stripe Redirect Notice */}
+              {/* Secure Payment Notice */}
               <div className="flex items-center gap-3 p-4 bg-off-white rounded-2xl border-2 border-silver border-dashed">
                 <div className="text-2xl">🔒</div>
                 <p className="text-[10px] text-blue-slate font-bold uppercase tracking-widest leading-relaxed">
-                  You'll be redirected to Stripe's secure checkout to complete your payment.
+                  Secure payment powered by Stripe. Your card details never touch our servers.
                 </p>
               </div>
 
@@ -483,6 +495,22 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
               <div className="flex justify-center items-center gap-2 text-silver">
                 <span className="text-xs font-medium">Powered by</span>
                 <span className="font-black text-[#635BFF]">stripe</span>
+              </div>
+            </div>
+          )}
+
+          {step === 'PAYMENT' && clientSecret && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              <div className="text-center">
+                <span className="text-5xl mb-4 inline-block">💳</span>
+                <h3 className="text-2xl font-black text-gunmetal">Complete Payment</h3>
+                <p className="text-blue-slate font-medium">Enter your payment details below</p>
+              </div>
+
+              <div className="bg-white rounded-[2rem] border-4 border-silver p-6">
+                <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                  <EmbeddedCheckout />
+                </EmbeddedCheckoutProvider>
               </div>
             </div>
           )}
@@ -498,7 +526,12 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
             {step === 'DEDICATION' ? 'Back to Proof' : 'Previous Step'}
           </button>
 
-          {step === 'REVIEW' ? (
+          {step === 'PAYMENT' ? (
+            <div className="flex items-center gap-2 text-silver">
+              <span className="text-xs font-medium">Powered by</span>
+              <span className="font-black text-[#635BFF]">stripe</span>
+            </div>
+          ) : step === 'REVIEW' ? (
             <Button
               size="lg"
               onClick={handleCheckout}
@@ -508,11 +541,11 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
                 {isCheckingOut ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Redirecting...
+                    Preparing Payment...
                   </>
                 ) : (
                   <>
-                    Proceed to Checkout
+                    Place Order
                     <span className="text-lg">🔒</span>
                   </>
                 )}

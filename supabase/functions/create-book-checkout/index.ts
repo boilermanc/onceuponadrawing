@@ -316,25 +316,18 @@ Deno.serve(async (req) => {
 
     console.log('[create-book-checkout] Total amount:', totalAmount, 'cents')
 
-    // Build redirect URLs - use frontend-provided URLs or fallback to defaults
-    const successUrl = body.successUrl
+    // Build return URL for embedded checkout
+    const returnUrl = body.successUrl
       ? `${body.successUrl}?session_id={CHECKOUT_SESSION_ID}`
       : `${DEFAULT_BASE_URL}/order-success?session_id={CHECKOUT_SESSION_ID}`
-    const cancelUrl = body.cancelUrl || `${DEFAULT_BASE_URL}/order-cancelled`
 
-    console.log('[create-book-checkout] Redirect URLs:', {
-      successUrl,
-      cancelUrl,
-      providedSuccessUrl: body.successUrl,
-      providedCancelUrl: body.cancelUrl,
-    })
+    console.log('[create-book-checkout] Return URL:', returnUrl)
 
-    // Build checkout session params — always use dynamic price_data so we can
-    // include shipping in the total amount
+    // Build checkout session params — embedded mode with dynamic price_data
     let sessionParams: any = {
       mode: 'payment',
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      ui_mode: 'embedded',
+      return_url: returnUrl,
       customer_email: body.userEmail,
     }
 
@@ -373,10 +366,9 @@ Deno.serve(async (req) => {
     console.log('[create-book-checkout] Creating Stripe checkout session...')
     const formBody = new URLSearchParams()
     formBody.append('mode', sessionParams.mode)
-    formBody.append('success_url', sessionParams.success_url)
-    formBody.append('cancel_url', sessionParams.cancel_url)
+    formBody.append('ui_mode', sessionParams.ui_mode)
+    formBody.append('return_url', sessionParams.return_url)
     formBody.append('customer_email', sessionParams.customer_email)
-    formBody.append('payment_method_types[0]', 'card')
 
     // Add line items (always dynamic price_data)
     formBody.append('line_items[0][price_data][currency]', 'usd')
@@ -408,11 +400,9 @@ Deno.serve(async (req) => {
     const session = await stripeResponse.json()
     console.log('[create-book-checkout] Checkout session created:', {
       sessionId: session.id,
-      sessionUrl: session.url,
+      clientSecret: session.client_secret ? '***present***' : '***missing***',
       mode: session.mode,
       paymentStatus: session.payment_status,
-      successUrl: session.success_url,
-      cancelUrl: session.cancel_url,
     })
 
     // Create pending book order in database
@@ -435,7 +425,7 @@ Deno.serve(async (req) => {
     console.log('[create-book-checkout] Book order created:', bookOrder.id)
 
     return new Response(JSON.stringify({
-      url: session.url,
+      clientSecret: session.client_secret,
       orderId: bookOrder.id,
     }), {
       status: 200,
