@@ -36,16 +36,16 @@ async function generateFrontCoverPage(content: BookContent, coverColorId?: strin
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const page = pdfDoc.addPage([PAGE_SIZE, PAGE_SIZE]);
 
-  // Cover background colors by ID
+  // Cover background colors by ID (must match BookProof.tsx COVER_COLORS)
   const coverColors: Record<string, { r: number; g: number; b: number }> = {
-    'soft-blue': { r: 0.878, g: 0.949, b: 0.996 },
-    'sage-green': { r: 0.863, g: 0.918, b: 0.859 },
-    'warm-peach': { r: 0.996, g: 0.918, b: 0.878 },
-    'lavender': { r: 0.918, g: 0.878, b: 0.996 },
-    'butter-yellow': { r: 0.996, g: 0.976, b: 0.878 },
-    'rose-pink': { r: 0.996, g: 0.878, b: 0.918 },
-    'midnight': { r: 0.118, g: 0.141, b: 0.196 },
-    'charcoal': { r: 0.204, g: 0.220, b: 0.243 },
+    'soft-blue': { r: 0.878, g: 0.949, b: 0.996 },   // #E0F2FE
+    'cream': { r: 0.996, g: 0.976, b: 0.906 },       // #FEF9E7
+    'sage': { r: 0.835, g: 0.910, b: 0.831 },        // #D5E8D4
+    'blush': { r: 0.988, g: 0.894, b: 0.925 },       // #FCE4EC
+    'lavender': { r: 0.910, g: 0.871, b: 0.973 },    // #E8DEF8
+    'buttercup': { r: 1, g: 0.976, b: 0.769 },       // #FFF9C4
+    'black': { r: 0.102, g: 0.102, b: 0.102 },       // #1A1A1A
+    'navy': { r: 0.106, g: 0.165, b: 0.290 },        // #1B2A4A
   };
 
   const textColors: Record<string, { r: number; g: number; b: number }> = {
@@ -149,15 +149,16 @@ async function generateBackCoverPage(content: BookContent, coverColorId?: string
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const page = pdfDoc.addPage([PAGE_SIZE, PAGE_SIZE]);
 
+  // Cover background colors by ID (must match BookProof.tsx COVER_COLORS)
   const coverColors: Record<string, { r: number; g: number; b: number }> = {
-    'soft-blue': { r: 0.878, g: 0.949, b: 0.996 },
-    'sage-green': { r: 0.863, g: 0.918, b: 0.859 },
-    'warm-peach': { r: 0.996, g: 0.918, b: 0.878 },
-    'lavender': { r: 0.918, g: 0.878, b: 0.996 },
-    'butter-yellow': { r: 0.996, g: 0.976, b: 0.878 },
-    'rose-pink': { r: 0.996, g: 0.878, b: 0.918 },
-    'midnight': { r: 0.118, g: 0.141, b: 0.196 },
-    'charcoal': { r: 0.204, g: 0.220, b: 0.243 },
+    'soft-blue': { r: 0.878, g: 0.949, b: 0.996 },   // #E0F2FE
+    'cream': { r: 0.996, g: 0.976, b: 0.906 },       // #FEF9E7
+    'sage': { r: 0.835, g: 0.910, b: 0.831 },        // #D5E8D4
+    'blush': { r: 0.988, g: 0.894, b: 0.925 },       // #FCE4EC
+    'lavender': { r: 0.910, g: 0.871, b: 0.973 },    // #E8DEF8
+    'buttercup': { r: 1, g: 0.976, b: 0.769 },       // #FFF9C4
+    'black': { r: 0.102, g: 0.102, b: 0.102 },       // #1A1A1A
+    'navy': { r: 0.106, g: 0.165, b: 0.290 },        // #1B2A4A
   };
 
   const textColors: Record<string, { r: number; g: number; b: number }> = {
@@ -260,12 +261,15 @@ export async function generateEbookPdf(
 ): Promise<Uint8Array> {
   console.log('[Ebook PDF] Starting ebook generation for:', content.title);
 
-  // Generate all three parts
-  const [frontCoverBytes, interiorBytes, backCoverBytes] = await Promise.all([
-    generateFrontCoverPage(content, options?.coverColorId, options?.textColorId),
-    generateInteriorPdf(content),
-    generateBackCoverPage(content, options?.coverColorId, options?.textColorId),
-  ]);
+  // Generate parts sequentially to avoid CPU spikes (edge function CPU limits)
+  console.log('[Ebook PDF] Generating front cover...');
+  const frontCoverBytes = await generateFrontCoverPage(content, options?.coverColorId, options?.textColorId);
+
+  console.log('[Ebook PDF] Generating interior pages...');
+  const interiorBytes = await generateInteriorPdf(content);
+
+  console.log('[Ebook PDF] Generating back cover...');
+  const backCoverBytes = await generateBackCoverPage(content, options?.coverColorId, options?.textColorId);
 
   console.log('[Ebook PDF] All parts generated, merging...');
 

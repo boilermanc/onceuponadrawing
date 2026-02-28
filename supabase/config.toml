@@ -28,6 +28,9 @@ verify_jwt = false
 [functions.process-book-order]
 verify_jwt = false
 
+[functions.process-ebook-order]
+verify_jwt = false
+
 [functions.lulu-webhook]
 verify_jwt = false
 

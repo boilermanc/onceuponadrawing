@@ -50,7 +50,7 @@ const UploadGuidelines: React.FC<UploadGuidelinesProps> = ({
 
       {/* Modal Card */}
       <div
-        className="relative w-full max-w-lg bg-off-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl bg-off-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with gradient */}
@@ -60,64 +60,67 @@ const UploadGuidelines: React.FC<UploadGuidelinesProps> = ({
         </div>
 
         <div className="p-6 space-y-5">
-          {/* What Works Best - Green Section */}
-          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+          {/* Two-column layout for green/red sections on desktop */}
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* What Works Best - Green Section */}
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="font-black text-emerald-700 text-lg">What Works Best</h3>
               </div>
-              <h3 className="font-black text-emerald-700 text-lg">What Works Best</h3>
+              <ul className="space-y-2 text-emerald-800">
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-500 mt-0.5">•</span>
+                  <span>Hand-drawn artwork on paper (crayons, markers, pencils)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-500 mt-0.5">•</span>
+                  <span>Cartoon-style doodles and characters</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-500 mt-0.5">•</span>
+                  <span>Original characters from imagination</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-emerald-500 mt-0.5">•</span>
+                  <span>Abstract art and fun shapes</span>
+                </li>
+              </ul>
             </div>
-            <ul className="space-y-2 text-emerald-800">
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">•</span>
-                <span>Hand-drawn artwork on paper (crayons, markers, pencils)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">•</span>
-                <span>Cartoon-style doodles and characters</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">•</span>
-                <span>Original characters from imagination</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">•</span>
-                <span>Abstract art and fun shapes</span>
-              </li>
-            </ul>
-          </div>
 
-          {/* What Won't Work - Red Section */}
-          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            {/* What Won't Work - Red Section */}
+            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <h3 className="font-black text-red-700 text-lg">What Won't Work</h3>
               </div>
-              <h3 className="font-black text-red-700 text-lg">What Won't Work</h3>
+              <ul className="space-y-2 text-red-800">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Real photos of children — only drawings please!</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Photos of celebrities or famous people</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Copyrighted characters (Disney, Pokemon, etc.)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Violent, scary, or inappropriate content</span>
+                </li>
+              </ul>
             </div>
-            <ul className="space-y-2 text-red-800">
-              <li className="flex items-start gap-2">
-                <span className="text-red-500 mt-0.5">•</span>
-                <span>Real photos of children — only drawings please!</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-red-500 mt-0.5">•</span>
-                <span>Photos of celebrities or famous people</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-red-500 mt-0.5">•</span>
-                <span>Copyrighted characters (Disney, Pokemon, etc.)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-red-500 mt-0.5">•</span>
-                <span>Violent, scary, or inappropriate content</span>
-              </li>
-            </ul>
           </div>
 
           {/* Pro Tip - Yellow Section */}

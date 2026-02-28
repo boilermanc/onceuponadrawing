@@ -152,6 +152,7 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
   const [ebookPollCount, setEbookPollCount] = useState(0);
   const [ebookTimedOut, setEbookTimedOut] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const MAX_POLL_COUNT = 40; // 40 polls * 3 seconds = 2 minutes max
 
   // Poll for ebook download URL if order is ebook and not yet completed
@@ -231,6 +232,34 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
       // Reset polling to check for result
       setEbookPollCount(0);
       setEbookTimedOut(false);
+    }
+  };
+
+  // Download ebook PDF handler - fetches blob and triggers download
+  const handleDownloadEbook = async () => {
+    if (!orderDetails?.download_url || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      const response = await fetch(orderDetails.download_url);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = orderDetails.creation_title
+        ? `${orderDetails.creation_title.replace(/[^a-z0-9]/gi, '-')}-storybook.pdf`
+        : 'storybook.pdf';
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[BookOrderSuccess] Download failed:', err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -401,16 +430,25 @@ const BookOrderSuccess: React.FC<BookOrderSuccessProps> = ({
                 <p className="text-blue-slate text-sm mb-6">
                   Download your high-quality PDF storybook. This link expires in 7 days.
                 </p>
-                <a
-                  href={orderDetails.download_url}
-                  download
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-pacific-cyan to-blue-500 text-white rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl"
+                <button
+                  onClick={handleDownloadEbook}
+                  disabled={isDownloading}
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-pacific-cyan to-blue-500 text-white rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download Your Storybook
-                </a>
+                  {isDownloading ? (
+                    <>
+                      <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download PDF
+                    </>
+                  )}
+                </button>
                 <p className="text-blue-slate/60 text-xs mt-4">
                   We also sent a download link to your email.
                 </p>

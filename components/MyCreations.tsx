@@ -154,19 +154,32 @@ const MyCreations: React.FC<MyCreationsProps> = ({ userId, onBack, onOpenCreatio
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleDownloadEbook = (e: React.MouseEvent, creation: Creation) => {
+  const handleDownloadEbook = async (e: React.MouseEvent, creation: Creation) => {
     e.stopPropagation();
     const ebookInfo = ebookDownloads.get(creation.id);
-    if (ebookInfo?.downloadUrl) {
+    if (!ebookInfo?.downloadUrl) return;
+
+    setToast({ type: 'success', text: 'Starting download...' });
+
+    try {
+      const response = await fetch(ebookInfo.downloadUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = ebookInfo.downloadUrl;
-      link.download = `${creation.title.replace(/[^a-z0-9]/gi, '-')}.pdf`;
+      link.href = url;
+      link.download = `${creation.title.replace(/[^a-z0-9]/gi, '-')}-storybook.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setToast({ type: 'success', text: 'Ebook download started!' });
-      setTimeout(() => setToast(null), 3000);
+      window.URL.revokeObjectURL(url);
+      setToast({ type: 'success', text: 'Download complete!' });
+    } catch (err) {
+      console.error('Failed to download ebook:', err);
+      setToast({ type: 'error', text: 'Download failed' });
     }
+    setTimeout(() => setToast(null), 3000);
   };
 
   const isPremium = saveStatus?.limit === Infinity;

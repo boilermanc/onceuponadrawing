@@ -23,7 +23,16 @@
       "Bash(ls:*)",
       "Bash(supabase secrets:*)",
       "Bash(echo:*)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx vite build)",
+      "Bash(git status:*)",
+      "Bash(cd:*)",
+      "Bash(npx vite build:*)",
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(dir \"c:\\\\Users\\\\clint\\\\Documents\\\\Github\\\\onceuponadrawing\\\\public\\\\icons\")"
     ]
   }
 }

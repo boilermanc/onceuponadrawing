@@ -174,19 +174,17 @@ async function handleBookOrder(session: any): Promise<Response> {
     console.log('[stripe-webhook] Triggering book processing for order type:', bookOrder.order_type)
 
     if (bookOrder.order_type === 'ebook') {
-      // Ebook: generate PDF and deliver download link
-      fetch(`${SUPABASE_URL}/functions/v1/process-ebook-order`, {
+      // Ebook: trigger n8n workflow for PDF generation and delivery
+      fetch('https://n8n.sproutify.app/webhook/74539b5d-b1cb-4ff9-8083-d4f34cce5866', {
         method: 'POST',
         headers: {
-          'apikey': SUPABASE_SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           bookOrderId: bookOrder.id,
         }),
       }).catch(err => {
-        console.error('[stripe-webhook] Failed to trigger ebook processing:', err)
+        console.error('[stripe-webhook] Failed to trigger n8n ebook processing:', err)
       })
     } else {
       // Physical book: generate PDFs and submit to Lulu

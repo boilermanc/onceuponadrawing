@@ -28,6 +28,22 @@ interface ProcessEbookOrderRequest {
   bookOrderId: string;
 }
 
+// Helper to get signed URL from storage path
+async function getSignedUrl(supabase: any, bucketName: string, path: string): Promise<string> {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+
+  const { data, error } = await supabase.storage
+    .from(bucketName)
+    .createSignedUrl(path, 60 * 60); // 1 hour expiry
+
+  if (error || !data?.signedUrl) {
+    console.error(`[process-ebook-order] Failed to get signed URL for ${bucketName}/${path}:`, error);
+    return '';
+  }
+  return data.signedUrl;
+}
+
 Deno.serve(async (req) => {
   console.log('[process-ebook-order] Request received:', req.method);
 
@@ -56,7 +72,7 @@ Deno.serve(async (req) => {
         *,
         creations!inner(
           id, title, artist_name, artist_age, year,
-          dedication_text, original_image_url, hero_image_url, story_pages
+          original_image_path, analysis_json, page_images
         )
       `)
       .eq('id', body.bookOrderId)
@@ -101,15 +117,53 @@ Deno.serve(async (req) => {
 
     // Step 2: Prepare book content
     const creation = (bookOrder as any).creations;
+
+    // Get signed URL for original image (stored in 'drawings' bucket)
+    const originalImageUrl = await getSignedUrl(supabase, 'drawings', creation.original_image_path);
+    const heroImageUrl = originalImageUrl; // Use same image for hero
+    console.log('[process-ebook-order] Image URL:', originalImageUrl ? 'obtained' : 'MISSING');
+
+    // Get story pages from analysis_json and replace imageUrls with signed URLs from page_images
+    const rawPages = creation.analysis_json?.pages || [];
+    const pageImagePaths: string[] = creation.page_images || [];
+
+    // Generate signed URLs for each page image
+    console.log('[process-ebook-order] Generating signed URLs for', pageImagePaths.length, 'page images...');
+    const storyPages = await Promise.all(
+      rawPages.map(async (page: { pageNumber: number; text: string; imageUrl: string }, index: number) => {
+        const pagePath = pageImagePaths[index];
+        let imageUrl = page.imageUrl; // fallback to original URL
+
+        if (pagePath) {
+          const signedUrl = await getSignedUrl(supabase, 'page-images', pagePath);
+          if (signedUrl) {
+            imageUrl = signedUrl;
+            console.log(`[process-ebook-order] Page ${index + 1}: signed URL obtained`);
+          } else {
+            console.warn(`[process-ebook-order] Page ${index + 1}: failed to get signed URL, using fallback`);
+          }
+        } else {
+          console.warn(`[process-ebook-order] Page ${index + 1}: no page_images path, using original imageUrl`);
+        }
+
+        return {
+          pageNumber: page.pageNumber,
+          text: page.text,
+          imageUrl,
+        };
+      })
+    );
+    console.log('[process-ebook-order] Story pages prepared:', storyPages.length);
+
     const bookContent: BookContent = {
-      title: creation.title,
-      artistName: creation.artist_name,
+      title: creation.title || 'Untitled Story',
+      artistName: creation.artist_name || 'Unknown Artist',
       age: creation.artist_age,
       year: creation.year,
-      dedication: bookOrder.dedication_text || creation.dedication_text,
-      originalImageUrl: creation.original_image_url,
-      heroImageUrl: creation.hero_image_url,
-      pages: creation.story_pages || [],
+      dedication: bookOrder.dedication_text || '',
+      originalImageUrl,
+      heroImageUrl,
+      pages: storyPages,
     };
 
     console.log('[process-ebook-order] Generating ebook PDF for:', bookContent.title);
