@@ -823,11 +823,11 @@ const App: React.FC = () => {
                 }}
               />
             )}
-            {state.step === AppStep.CHECKOUT && state.analysis && (
+            {state.step === AppStep.CHECKOUT && state.analysis && state.originalImage && (
               <BookProof
                 analysis={state.analysis}
-                originalImage={state.originalImage!}
-                heroImage={state.heroImageUrl || state.originalImage!}
+                originalImage={state.originalImage}
+                heroImage={state.heroImageUrl || state.originalImage}
                 onUpdate={handleUpdateAnalysis}
                 onApprove={async (coverColorId: string, textColorId: string) => {
                   setSelectedCoverColor(coverColorId);

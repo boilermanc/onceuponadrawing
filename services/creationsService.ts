@@ -476,12 +476,18 @@ export async function getCreation(
     return null;
   }
 
-  // Generate signed URLs for all assets
-  const originalImageUrl = await getSignedUrl('drawings', creation.original_image_path);
-  const videoUrl = await getSignedUrl('outputs', creation.video_path);
+  // Generate signed URLs for all assets (24-hour expiry for book proofing sessions)
+  const ASSET_EXPIRY = 60 * 60 * 24; // 24 hours
+  const originalImageUrl = await getSignedUrl('drawings', creation.original_image_path, ASSET_EXPIRY);
+  const videoUrl = await getSignedUrl('outputs', creation.video_path, ASSET_EXPIRY);
 
   if (!originalImageUrl || !videoUrl) {
-    console.error('Failed to generate signed URLs for creation assets');
+    console.error('[getCreation] Failed to generate signed URLs for creation assets:', {
+      originalPath: creation.original_image_path,
+      videoPath: creation.video_path,
+      hasOriginalUrl: !!originalImageUrl,
+      hasVideoUrl: !!videoUrl,
+    });
     return null;
   }
 
@@ -489,7 +495,7 @@ export async function getCreation(
   const pageImageUrls: string[] = [];
   if (creation.page_images && Array.isArray(creation.page_images)) {
     for (const pagePath of creation.page_images) {
-      const pageUrl = await getSignedUrl('page-images', pagePath);
+      const pageUrl = await getSignedUrl('page-images', pagePath, ASSET_EXPIRY);
       if (pageUrl) {
         pageImageUrls.push(pageUrl);
       }

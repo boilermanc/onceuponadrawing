@@ -60,6 +60,9 @@ const BookProof: React.FC<BookProofProps> = ({
   const [selectedTextColor, setSelectedTextColor] = useState<string>('gunmetal');
   const { showToast } = useToast();
 
+  // Diagnostic logging for image issues
+  console.log('[BookProof] originalImage type:', originalImage?.startsWith('data:') ? 'base64' : 'url', 'length:', originalImage?.length, 'preview:', originalImage?.substring(0, 80));
+
   // 1 spread for Cover Preview, 1 for Intro, 1 for Title/Dedication, 12 for Story, 1 for End/Hero, 1 for About/Colophon, 2 for Sketch/Endpapers
   const totalSpreads = 19;
   const allSpreadsViewed = visitedSpreads.size >= totalSpreads;
@@ -108,18 +111,42 @@ const BookProof: React.FC<BookProofProps> = ({
     );
 
     // Common Image Page Styling
-    const ImagePage = ({ src, side, label }: { src: string, side: 'left' | 'right', label?: string }) => (
-      <div className={`w-1/2 h-full bg-slate-100 relative overflow-hidden group ${side === 'left' ? 'border-r' : ''}`}>
-        <img src={src} className="w-full h-full object-cover" alt="Page visual" />
-        <div className={`absolute inset-y-0 ${side === 'left' ? 'right-0 w-24 bg-gradient-to-l' : 'left-0 w-24 bg-gradient-to-r'} from-black/10 to-transparent pointer-events-none z-10`}></div>
-        {label && (
-           <div className="absolute top-6 left-6 z-20 px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[8px] font-black text-white uppercase tracking-widest">
-             {label}
-           </div>
-        )}
-        <PageNumber num={side === 'left' ? pageL : pageR} side={side} />
-      </div>
-    );
+    const ImagePage = ({ src, side, label }: { src: string, side: 'left' | 'right', label?: string }) => {
+      const [failed, setFailed] = useState(false);
+      return (
+        <div className={`w-1/2 h-full bg-slate-100 relative overflow-hidden group ${side === 'left' ? 'border-r' : ''}`}>
+          {!failed ? (
+            <img
+              src={src}
+              className="w-full h-full object-cover"
+              alt="Page visual"
+              onError={() => {
+                console.error('[BookProof] Image failed to load:', src?.substring(0, 120));
+                setFailed(true);
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50">
+              <div className="w-16 h-16 rounded-full bg-silver/10 flex items-center justify-center text-3xl mb-4">🎨</div>
+              <p className="text-sm font-bold text-silver/70">Image loading...</p>
+              <button
+                className="mt-3 text-xs text-pacific-cyan underline hover:no-underline"
+                onClick={() => setFailed(false)}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          <div className={`absolute inset-y-0 ${side === 'left' ? 'right-0 w-24 bg-gradient-to-l' : 'left-0 w-24 bg-gradient-to-r'} from-black/10 to-transparent pointer-events-none z-10`}></div>
+          {label && (
+             <div className="absolute top-6 left-6 z-20 px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[8px] font-black text-white uppercase tracking-widest">
+               {label}
+             </div>
+          )}
+          <PageNumber num={side === 'left' ? pageL : pageR} side={side} />
+        </div>
+      );
+    };
 
     if (index === 0) {
       // Spread 0: Cover Preview (Back Cover | Front Cover)
