@@ -1,13 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from '@stripe/react-stripe-js';
 import { DrawingAnalysis, ProductType, ShippingInfo } from '../types';
 import { supabase } from '../services/supabaseClient';
 import Button from './ui/Button';
 import { usePrices } from '../contexts/PricesContext';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+import { useSetting } from '../hooks/useSettings';
 
 interface ShippingOption {
   shippingOptionId: string;
@@ -45,6 +44,13 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
     product === ProductType.HARDCOVER ? prices.hardcover :
     prices.softcover
   ) : null;
+
+  // Load Stripe publishable key from config_settings, then init Stripe
+  const { value: stripePublishableKey } = useSetting('integrations', 'stripe_publishable_key');
+  const stripePromise = useMemo(
+    () => stripePublishableKey ? loadStripe(stripePublishableKey as string) : null,
+    [stripePublishableKey]
+  );
 
   // Shipping rate state
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -508,9 +514,16 @@ const OrderFlow: React.FC<OrderFlowProps> = ({ analysis, userId, creationId, use
               </div>
 
               <div className="bg-white rounded-[2rem] border-4 border-silver p-6">
-                <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
-                  <EmbeddedCheckout />
-                </EmbeddedCheckoutProvider>
+                {stripePromise ? (
+                  <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
+                    <EmbeddedCheckout />
+                  </EmbeddedCheckoutProvider>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="w-10 h-10 border-4 border-pacific-cyan/20 border-t-pacific-cyan rounded-full animate-spin"></div>
+                    <p className="text-blue-slate text-sm mt-4">Loading payment...</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
