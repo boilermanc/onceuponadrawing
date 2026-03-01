@@ -264,7 +264,7 @@ const BookProof: React.FC<BookProofProps> = ({
     if (index >= 3 && index <= 14) {
       // Spreads 3-14: Story Segments (Image Left | Text Right)
       const storyIdx = index - 3;
-      const page = analysis.pages[storyIdx];
+      const page = analysis.pages?.[storyIdx];
       return (
         <div className="flex h-full w-full bg-white shadow-2xl rounded-2xl overflow-hidden border-4 border-white">
           <ImagePage src={page?.imageUrl || originalImage} side="left" />

@@ -58,7 +58,7 @@ export interface DrawingAnalysis {
   environment: string;
   suggestedAction: string;
   storyTitle: string;
-  pages: StoryPage[];
+  pages?: StoryPage[];
   artistName: string;
   year: string;
   grade: string;

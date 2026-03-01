@@ -19,7 +19,7 @@ const getBase64Data = (base64: string) => base64.split(',')[1];
 export const analyzeDrawing = async (base64Image: string): Promise<DrawingAnalysis> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-3-pro-preview';
-  
+
   const response = await ai.models.generateContent({
     model,
     contents: {
@@ -31,17 +31,14 @@ export const analyzeDrawing = async (base64Image: string): Promise<DrawingAnalys
           },
         },
         {
-          text: `You are a world-class children's storyteller. Analyze this drawing. 
+          text: `You are a world-class children's storyteller. Analyze this drawing.
 
-1. Identify the subject. 
-2. Create a detailed 'characterAppearance' description (colors, shapes, key features) for consistent illustration. 
-3. Imagine a whimsical 3D environment. 
-4. Suggest a fun action. 
-5. Write an epic 12-page whimsical adventure story for a picture book (this is for a 24-page physical book layout). 
-   - Each page must have 'text' (1-2 simple, engaging sentences).
-   - Each page must have 'imagePrompt' (detailed scene description).
-6. Create an engaging story title.
-7. Look for a name, age, or date written by the child.
+1. Identify the subject.
+2. Create a detailed 'characterAppearance' description (colors, shapes, key features) for consistent illustration.
+3. Imagine a whimsical 3D environment that fits the drawing.
+4. Suggest a fun action the subject could be doing.
+5. Create an engaging story title.
+6. Look for a name, age, grade, or date written by the child.
 
 Output JSON format exactly.`,
         },
@@ -61,26 +58,84 @@ Output JSON format exactly.`,
           year: { type: Type.STRING },
           grade: { type: Type.STRING },
           age: { type: Type.STRING },
-          pages: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                pageNumber: { type: Type.NUMBER },
-                text: { type: Type.STRING },
-                imagePrompt: { type: Type.STRING }
-              },
-              required: ["pageNumber", "text", "imagePrompt"]
-            }
-          }
         },
-        required: ["subject", "characterAppearance", "environment", "suggestedAction", "storyTitle", "pages", "artistName", "year", "grade", "age"],
+        required: ["subject", "characterAppearance", "environment", "suggestedAction", "storyTitle", "artistName", "year", "grade", "age"],
       },
     },
   });
 
   const text = response.text;
   if (!text) throw new Error("The magic brush ran out of paint! Try again.");
+  return JSON.parse(text.trim());
+};
+
+export const generateStory = async (
+  base64Image: string,
+  analysis: DrawingAnalysis,
+  surpriseMe?: boolean
+): Promise<StoryPage[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const model = 'gemini-3-pro-preview';
+
+  const guidedPrompt = `You are a world-class children's picture-book author. Using the character from this drawing and the details below, write a 10-page whimsical children's adventure story.
+
+Character: ${analysis.subject} (${analysis.characterAppearance})
+Setting/Environment: ${analysis.environment}
+Main Action/Plot Driver: ${analysis.suggestedAction}
+Story Title: ${analysis.storyTitle}
+
+Requirements:
+- The story takes place in the environment described above: "${analysis.environment}".
+- The main plot is driven by the action: "${analysis.suggestedAction}".
+- Each page must have 'text' (1-2 simple, engaging sentences for young children).
+- Each page must have 'imagePrompt' (a detailed 3D Pixar-style scene description for illustration, always referencing the character's appearance for consistency).
+- Build a clear beginning, middle, and satisfying end across exactly 10 pages.
+
+Output a JSON array of 10 page objects.`;
+
+  const surprisePrompt = `You are a world-class children's storyteller. Look at this character — ${analysis.subject} (${analysis.characterAppearance}) — and invent a completely unexpected, whimsical 10-page adventure story. Surprise us — go somewhere we'd never expect. Be bold and creative. Invent a wild new setting, an unusual quest, and delightful twists.
+
+Requirements:
+- Each page must have 'text' (1-2 simple, engaging sentences for young children).
+- Each page must have 'imagePrompt' (a detailed 3D Pixar-style scene description for illustration, always referencing the character's appearance for consistency).
+- Build a clear beginning, middle, and satisfying end across exactly 10 pages.
+
+Output a JSON array of 10 page objects.`;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            mimeType: 'image/png',
+            data: getBase64Data(base64Image),
+          },
+        },
+        {
+          text: surpriseMe ? surprisePrompt : guidedPrompt,
+        },
+      ],
+    },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            pageNumber: { type: Type.NUMBER },
+            text: { type: Type.STRING },
+            imagePrompt: { type: Type.STRING },
+          },
+          required: ["pageNumber", "text", "imagePrompt"],
+        },
+      },
+    },
+  });
+
+  const text = response.text;
+  if (!text) throw new Error("The story wizard lost their quill! Try again.");
   return JSON.parse(text.trim());
 };
 

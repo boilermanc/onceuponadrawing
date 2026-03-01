@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppStep, AppState, DrawingAnalysis, ProductType, ShippingInfo, OrderStatus, Order, User } from './types';
-import { analyzeDrawing, generateAnimation, generateStoryImage, VideoGenerationError } from './services/geminiService';
+import { analyzeDrawing, generateStory, generateAnimation, generateStoryImage, VideoGenerationError } from './services/geminiService';
 import { saveDraft, restoreDraft, clearDraft, hasDraft } from './services/draftStorage';
 import { supabase } from './services/supabaseClient';
 import {
@@ -390,7 +390,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleStartAnimation = async (refinedAnalysis: DrawingAnalysis) => {
+  const handleStartAnimation = async (refinedAnalysis: DrawingAnalysis & { surpriseMe?: boolean }) => {
     if (!state.originalImage) return;
     setState(prev => ({ ...prev, step: AppStep.ANIMATING, analysis: refinedAnalysis }));
     setLoadingText('Waking up the magic...');
@@ -406,19 +406,23 @@ const App: React.FC = () => {
         setCurrentDrawingId(drawing.id);
       }
 
-      const { videoUrl, heroImageUrl } = await generateAnimation(
-        state.originalImage, 
-        refinedAnalysis
-      );
-      
-      setState(prev => ({ 
-        ...prev, 
-        finalVideoUrl: videoUrl,
-        heroImageUrl: heroImageUrl 
+      // Generate animation and story in parallel
+      const [animationResult, storyPages] = await Promise.all([
+        generateAnimation(state.originalImage, refinedAnalysis),
+        generateStory(state.originalImage, refinedAnalysis, refinedAnalysis.surpriseMe),
+      ]);
+
+      refinedAnalysis.pages = storyPages;
+
+      setState(prev => ({
+        ...prev,
+        finalVideoUrl: animationResult.videoUrl,
+        heroImageUrl: animationResult.heroImageUrl,
+        analysis: refinedAnalysis,
       }));
 
       // Background: Generate story images
-      refinedAnalysis.pages.forEach(async (page, i) => {
+      storyPages.forEach(async (page, i) => {
         try {
           const img = await generateStoryImage(
             state.originalImage!, 
@@ -426,7 +430,7 @@ const App: React.FC = () => {
             page.imagePrompt
           );
           setState(prev => {
-            if (!prev.analysis) return prev;
+            if (!prev.analysis?.pages) return prev;
             const newPages = [...prev.analysis.pages];
             newPages[i] = { ...newPages[i], imageUrl: img };
             return { ...prev, analysis: { ...prev.analysis, pages: newPages } };
@@ -570,7 +574,7 @@ const App: React.FC = () => {
     const doSave = async () => {
       try {
         // Gather page images from analysis
-        const pageImages = state.analysis!.pages
+        const pageImages = (state.analysis!.pages || [])
           .map(page => page.imageUrl)
           .filter((url): url is string => !!url);
 
@@ -798,7 +802,7 @@ const App: React.FC = () => {
                 analysis={state.analysis}
                 onOpenStory={handleOpenStory}
                 onOrder={() => setState(p => ({...p, step: AppStep.EDITION_SELECT}))}
-                isStoryLoading={!state.analysis?.pages.every(p => p.imageUrl)}
+                isStoryLoading={!state.analysis?.pages?.every(p => p.imageUrl)}
               />
             )}
             {state.step === AppStep.PRODUCT_SELECT && (

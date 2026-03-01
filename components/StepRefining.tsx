@@ -5,7 +5,7 @@ import { DrawingAnalysis } from '../types';
 interface StepRefiningProps {
   analysis: DrawingAnalysis;
   originalImage: string | null;
-  onConfirm: (refined: DrawingAnalysis) => void;
+  onConfirm: (refined: DrawingAnalysis & { surpriseMe?: boolean }) => void;
 }
 
 const StepRefining: React.FC<StepRefiningProps> = ({ analysis, originalImage, onConfirm }) => {
@@ -137,13 +137,20 @@ const StepRefining: React.FC<StepRefiningProps> = ({ analysis, originalImage, on
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto pt-8">
-        <button 
+      <div className="max-w-2xl mx-auto pt-8 space-y-4">
+        <button
           onClick={() => onConfirm(refined)}
           className="w-full py-8 bg-pacific-cyan text-white rounded-[3rem] font-black text-3xl hover:scale-105 transition-all shadow-2xl shadow-pacific-cyan/40 border-b-[12px] border-blue-slate flex items-center justify-center gap-4 group"
         >
           START THE MOVIE! 🎬
           <span className="text-4xl group-hover:rotate-12 transition-transform">✨</span>
+        </button>
+        <button
+          onClick={() => onConfirm({ ...refined, surpriseMe: true })}
+          className="w-full py-5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-[2rem] font-black text-lg hover:scale-[1.03] transition-all shadow-lg shadow-purple-500/30 border-b-[6px] border-indigo-800 flex items-center justify-center gap-3 group"
+        >
+          ✨ Surprise Me — Let the Magic Decide!
+          <span className="text-2xl group-hover:rotate-12 transition-transform">🪄</span>
         </button>
         <p className="text-center text-[10px] text-silver font-black uppercase tracking-[0.5em] mt-8">
           The Studio is ready for your direction

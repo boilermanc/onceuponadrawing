@@ -49,7 +49,8 @@ const Storybook: React.FC<StorybookProps> = ({
     playSound(SFX.MAGIC_OPEN, 0.4);
   }, [playSound]);
 
-  const totalSpreads = analysis.pages.length + 2;
+  const pages = analysis.pages || [];
+  const totalSpreads = pages.length + 2;
 
   const handleNext = () => {
     if (currentPage < totalSpreads - 1 && !isTurning) {
@@ -138,16 +139,16 @@ const Storybook: React.FC<StorybookProps> = ({
                 />
               ) : (
                 <div className="w-full h-full">
-                  {analysis.pages[currentPage - 1].imageUrl ? (
-                    <img 
-                      src={analysis.pages[currentPage - 1].imageUrl} 
+                  {pages[currentPage - 1]?.imageUrl ? (
+                    <img
+                      src={pages[currentPage - 1].imageUrl}
                       className="w-full h-full object-cover shadow-inner"
                       alt="Story illustration"
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full bg-slate-100 text-slate-400 gap-4">
-                      <div className="w-12 h-12 border-4 border-pacific-cyan border-t-transparent animate-spin rounded-full"></div>
-                      <p className="font-black uppercase tracking-widest text-xs text-pacific-cyan">Generating Magic...</p>
+                    <div className="flex flex-col items-center justify-center h-full bg-slate-200 animate-pulse gap-4">
+                      <span className="text-4xl animate-bounce">✨</span>
+                      <p className="font-black uppercase tracking-widest text-xs text-slate-400">Painting your story...</p>
                     </div>
                   )}
                 </div>
@@ -314,18 +315,23 @@ const Storybook: React.FC<StorybookProps> = ({
                        </button>
                     </div>
                   </div>
-                ) : (
+                ) : pages[currentPage - 1]?.text ? (
                   <div className="space-y-4 md:space-y-8">
-                    <div className="text-silver text-4xl md:text-6xl font-serif">“</div>
+                    <div className="text-silver text-4xl md:text-6xl font-serif">"</div>
                     <p className="text-lg md:text-3xl lg:text-4xl font-bold text-gunmetal leading-[1.3] font-serif italic px-2">
-                      {analysis.pages[currentPage - 1].text}
+                      {pages[currentPage - 1].text}
                     </p>
-                    <div className="text-silver text-4xl md:text-6xl font-serif rotate-180">“</div>
+                    <div className="text-silver text-4xl md:text-6xl font-serif rotate-180">"</div>
                     <div className="pt-4 md:pt-8">
                        <span className="px-4 py-1.5 md:px-6 md:py-2 bg-silver/30 text-blue-slate rounded-full text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">
-                         Page {currentPage} of {analysis.pages.length}
+                         Page {currentPage} of {pages.length}
                        </span>
                     </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full gap-4 animate-pulse">
+                    <span className="text-4xl animate-bounce">✨</span>
+                    <p className="font-black uppercase tracking-widest text-xs text-slate-300">Writing your story...</p>
                   </div>
                 )}
              </div>
@@ -365,17 +371,21 @@ const Storybook: React.FC<StorybookProps> = ({
       {/* Progress Footer */}
       <div className="mt-8 flex flex-col items-center gap-4 z-20">
         <div className="flex items-center gap-2 md:gap-3">
-          {Array.from({ length: totalSpreads }).map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleIndicatorClick(idx)}
-              className={`h-1.5 transition-all rounded-full ${
-                currentPage === idx 
-                ? 'w-8 md:w-10 bg-pacific-cyan shadow-[0_0_15px_rgba(98,146,158,0.8)]' 
-                : 'w-1.5 bg-white/20 hover:bg-white/40'
-              }`}
-            />
-          ))}
+          {pages.length === 0 ? (
+            <div className="h-1.5 w-8 md:w-10 bg-pacific-cyan rounded-full shadow-[0_0_15px_rgba(98,146,158,0.8)]" />
+          ) : (
+            Array.from({ length: totalSpreads }).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleIndicatorClick(idx)}
+                className={`h-1.5 transition-all rounded-full ${
+                  currentPage === idx
+                  ? 'w-8 md:w-10 bg-pacific-cyan shadow-[0_0_15px_rgba(98,146,158,0.8)]'
+                  : 'w-1.5 bg-white/20 hover:bg-white/40'
+                }`}
+              />
+            ))
+          )}
         </div>
         
         <div className="flex items-center gap-3">
